@@ -55,7 +55,7 @@ export default function Home({
     void save(m === 'off' ? { notificationsEnabled: false } : { notificationsEnabled: true, notificationMode: m })
 
   // The eye/head/posture baseline is captured when the countdown ends, after the user has spent
-  // 3 s looking at their study screen as the countdown asks.
+  // 5 s looking at their study screen as the countdown asks.
   const begin = (screenOnly: boolean): void => setCounting({ screenOnly })
 
   const hour = new Date().getHours()
@@ -106,7 +106,7 @@ export default function Home({
               <div className="flex-1">
                 <div className="text-sm font-medium">Look at your study screen when you start</div>
                 <div className="text-xs leading-relaxed text-ink-soft">
-                  For the best results, sit as you normally study and look at the screen you'll be studying from during the 3-2-1 countdown.
+                  For the best results, sit as you normally study and look at the screen you'll be studying from during the 5-second countdown.
                   StudyLens uses that starting eye position to learn where your screen is and tell whether you're studying or looking away.
                 </div>
               </div>

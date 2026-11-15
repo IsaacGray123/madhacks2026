@@ -195,12 +195,12 @@ npm.cmd run dev
   - Window background colors follow `nativeTheme.shouldUseDarkColors`.
 - **Privacy:** camera video goes to the laptop only while a preview is visible (`settings.cameraPreview` on, the main window shown). It is never written to disk or the DB. Keep the Home privacy note accurate if this changes.
 - **Recognition rules:**
-  - Anything per-person (posture ratio, head pitch/yaw, eyes-open level) is calibrated in `ActivityClassifier.capture_baseline()` during the 3-2-1 countdown.
+  - Anything per-person (posture ratio, head pitch/yaw, eyes-open level) is calibrated in `ActivityClassifier.capture_baseline()` during the 5-second countdown.
   - The hand model is optional: `vision.py` logs a warning and skips hands if `models/hand_landmarker.task` is missing.
   - Face runs every frame. Hands / pose / hands / objects share a 4-frame rotation, and results carry over between runs.
   - **Latency budget:** ~1.5 s switch delay on the board (plus any rule's own hold time, e.g. `PHONE_POSE_S`, `AWAY_AFTER_S`), then ≤0.5 s board publish and ≤0.5 s laptop `TICK_MS` in `session.ts`. Sleep timers stay long on purpose.
 - **Window behavior during a session** is user-selectable, default **minimize to taskbar**. The other options are hide to tray and close completely.
-- **Session flow:** Start runs a 3-2-1 countdown that tells the user to look at the screen they'll study from. The baseline (eye/head direction = "where the screen is", eyes-open level, posture) is captured when the countdown **ends**, not on click. Stop goes straight to the Report.
+- **Session flow:** Start runs a 5-second countdown that tells the user to look at the screen they'll study from. The baseline (eye/head direction = "where the screen is", eyes-open level, posture) is captured when the countdown **ends**, not on click. Stop goes straight to the Report.
   - Start tapped on the UNO Q touchscreen runs the same countdown on the laptop: main sends `navigate {page:'home', countdown:true}`, and Home runs the countdown and starts the session. If the window doesn't start it within 10 s, main captures the baseline and starts the session itself. Cancel sends `session:countdownCanceled`, which clears that fallback.
 - Keep shared logic pure and unit-tested (`app/src/shared`, `board/python/classifier.py`). Run typecheck and tests before committing.
 - Git: work on `main`, remote `origin` = GitHub. Commit only when asked.

@@ -10,7 +10,7 @@ export type Route = { page: 'home' } | { page: 'history' } | { page: 'settings' 
 
 export default function App(): JSX.Element {
   const [route, setRoute] = useState<Route>({ page: 'home' })
-  // Set when Start was tapped on the UNO Q touchscreen: Home runs the 3-2-1 countdown.
+  // Set when Start was tapped on the UNO Q touchscreen: Home runs the 5-second countdown.
   const [touchStart, setTouchStart] = useState(false)
   const status = useStatus()
 

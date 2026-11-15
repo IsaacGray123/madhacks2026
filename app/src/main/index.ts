@@ -131,7 +131,7 @@ function wireSession(): void {
   })
   session.on('reminder', (r) => showReminderPopup(r))
   session.on('reminder-cleared', () => hideReminderPopup())
-  // Start tapped on the UNO Q: run the same 3-2-1 "look at your study screen" countdown on the laptop,
+  // Start tapped on the UNO Q: run the same 5-second "look at your study screen" countdown on the laptop,
   // so the eye/head baseline is taken while the user faces their study screen, not the TFT.
   // The renderer captures the baseline and starts the session when the countdown ends.
   session.on('touch-start', () => {

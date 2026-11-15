@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 
+/** Seconds the user looks at their study screen before the baseline is captured and the session starts. */
+export const COUNTDOWN_SECONDS = 5
+
 export default function Countdown({ onDone, onCancel, baseline }: { onDone: () => void; onCancel: () => void; baseline: boolean }): JSX.Element {
-  const [n, setN] = useState(3)
+  const [n, setN] = useState(COUNTDOWN_SECONDS)
   // Parent re-renders every second (live status), so keep the callback out of the effect deps.
   const done = useRef(onDone)
   done.current = onDone

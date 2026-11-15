@@ -116,7 +116,7 @@ class ActivityClassifier:
         self.history: deque[tuple[float, str]] = deque()
         self.stable = "present"
         self.last_event_ts: dict[str, float] = {}
-        # Per-person calibration, captured during the laptop's 3-2-1 countdown.
+        # Per-person calibration, captured during the laptop's 5-second countdown.
         self.baseline_ratio: float | None = None
         self.baseline_pitch = 0.0
         self.baseline_yaw = 0.0
@@ -133,7 +133,7 @@ class ActivityClassifier:
 
     # ---- calibration ----
     def capture_baseline(self) -> None:
-        """Called at session start (the laptop's 3-2-1 countdown) while the user sits naturally."""
+        """Called at session start (the laptop's 5-second countdown) while the user sits naturally."""
         self.baseline_ratio = self.last_ratio
         self.baseline_pitch = self.last_pitch
         self.baseline_yaw = self.last_yaw
