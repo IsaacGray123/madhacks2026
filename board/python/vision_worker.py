@@ -5,9 +5,21 @@ from dataclasses import asdict
 import json
 import logging
 import sys
+import threading
 import time
 
 import config as C
+
+
+preview_on = threading.Event()
+
+
+def control_thread():
+    """main.py writes "preview 1" / "preview 0" to stdin when the laptop opens or closes its camera view."""
+    for line in sys.stdin:
+        cmd = line.split()
+        if len(cmd) == 2 and cmd[0] == "preview":
+            (preview_on.set if cmd[1] == "1" else preview_on.clear)()
 
 
 def main():
@@ -18,9 +30,10 @@ def main():
     output = sys.stdout
     # Reserve stdout for JSON. Python library messages go to the App Lab console.
     with contextlib.redirect_stdout(sys.stderr):
-        from camera import Camera
+        from camera import Camera, encode_preview
         from vision import VisionPipeline
 
+        threading.Thread(target=control_thread, daemon=True).start()
         logging.info("Creating AI models")
         pipeline = VisionPipeline()
         try:
@@ -32,8 +45,10 @@ def main():
                     started = time.monotonic()
                     frame = camera.read()
                     if frame is not None:
-                        signals = pipeline.process(frame)
-                        print(json.dumps(asdict(signals)), file=output, flush=True)
+                        payload = asdict(pipeline.process(frame))
+                        if preview_on.is_set():
+                            payload["frame"] = encode_preview(frame)
+                        print(json.dumps(payload), file=output, flush=True)
                     time.sleep(max(0.0, period - (time.monotonic() - started)))
             finally:
                 camera.close()

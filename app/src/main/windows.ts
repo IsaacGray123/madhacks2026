@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, shell } from 'electron'
+import { BrowserWindow, nativeTheme, screen, shell } from 'electron'
 import { join } from 'path'
 import type { ReminderPayload, Settings } from '@shared/types'
 
@@ -17,13 +17,18 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 900,
     minHeight: 640,
     show: false,
-    backgroundColor: '#f7f7f5',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#14181c' : '#f7f7f5',
     title: 'StudyLens',
     icon: iconPath,
     autoHideMenuBar: true,
     webPreferences: { preload, sandbox: false }
   })
   win.on('ready-to-show', () => win.show())
+  const syncBg = (): void => {
+    if (!win.isDestroyed()) win.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#14181c' : '#f7f7f5')
+  }
+  nativeTheme.on('updated', syncBg)
+  win.on('closed', () => nativeTheme.off('updated', syncBg))
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }

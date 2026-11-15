@@ -1,4 +1,7 @@
 """USB webcam capture that always hands back the *latest* frame (no stale buffered frames)."""
+from __future__ import annotations
+
+import base64
 import threading
 import time
 
@@ -36,3 +39,12 @@ class Camera:
     def close(self):
         self.running = False
         self.cap.release()
+
+
+def encode_preview(frame) -> str | None:
+    """Downscale a BGR frame and return it as a base64 JPEG for the laptop's live preview."""
+    h, w = frame.shape[:2]
+    if w > C.PREVIEW_WIDTH:
+        frame = cv2.resize(frame, (C.PREVIEW_WIDTH, int(h * C.PREVIEW_WIDTH / w)), interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, C.PREVIEW_JPEG_QUALITY])
+    return base64.b64encode(buf.tobytes()).decode("ascii") if ok else None

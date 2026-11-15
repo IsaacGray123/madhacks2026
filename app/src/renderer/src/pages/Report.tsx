@@ -140,7 +140,7 @@ export default function Report({ id, onBack }: { id: number; onBack: () => void 
 
       <div className="flex justify-end">
         <button
-          className="text-xs text-ink-faint hover:text-red-600"
+          className="text-xs text-ink-faint hover:text-red-600 dark:hover:text-red-400"
           onClick={async () => {
             if (confirm('Delete this session permanently?')) {
               await window.api.deleteSession(id)

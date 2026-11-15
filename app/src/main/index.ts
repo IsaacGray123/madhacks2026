@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, Tray } from 'electron'
 import { generateDemoSessions } from '@shared/demo'
 import type { Activity, ReminderType, Settings } from '@shared/types'
 import * as db from './db'
@@ -136,12 +136,32 @@ function wireSession(): void {
   session.on('status', () => updateTrayMenu())
 }
 
+// ---------- Camera preview ----------
+
+// Frames go straight to the main window; they are never stored.
+function wirePreview(): void {
+  device.on('message', (m) => {
+    if (m.type !== 'frame') return
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && !mainWindow.isMinimized()) {
+      mainWindow.webContents.send('camera:frame', m.jpeg)
+    }
+  })
+}
+
+// ---------- Theme ----------
+
+function applyTheme(settings: Settings): void {
+  // Drives prefers-color-scheme in every window (main, popup, edge bar) and the native title bar.
+  nativeTheme.themeSource = settings.theme
+}
+
 // ---------- IPC ----------
 
 function registerIpc(): void {
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => {
     const s = saveSettings(patch)
+    applyTheme(s)
     session.updateSettings(s)
     device.connect(s.deviceAddress)
     registerHotkey(s.hotkey)
@@ -161,6 +181,7 @@ function registerIpc(): void {
   ipcMain.handle('data:deleteAll', () => db.deleteAll())
   ipcMain.handle('data:loadDemo', () => db.importDetails(generateDemoSessions(Date.now(), 14, Math.floor(Math.random() * 1e6))))
   ipcMain.handle('device:test', (_e, address: string) => testConnection(address))
+  ipcMain.handle('camera:preview', (_e, on: boolean) => device.setPreview(on))
   ipcMain.handle('reminder:action', (_e, type: ReminderType, action: 'done' | 'dismiss') => {
     session.reminderAction(type, action)
     hideReminderPopup()
@@ -174,8 +195,10 @@ app.on('second-instance', () => showMain())
 
 app.whenReady().then(() => {
   const settings = getSettings()
+  applyTheme(settings)
   session = new SessionManager(settings, device, watcher)
   wireSession()
+  wirePreview()
   registerIpc()
   device.connect(settings.deviceAddress)
   registerHotkey(settings.hotkey)

@@ -7,6 +7,7 @@ board -> laptop:
   {"type":"vision","ts":<ms>,"state":"present|phone|away|eating|sleeping","conf":0..1,"face":bool,"slouch":0..1|null}
   {"type":"event","ts":<ms>,"event":"drank|ate"}
   {"type":"touch","action":"start|pause|resume|stop|reminder_done|reminder_dismiss","reminder"?:str}
+  {"type":"frame","ts":<ms>,"jpeg":<base64 JPEG>}   (only to clients that sent preview on)
 
 laptop -> board:
   {"type":"session","status":"idle|running|paused"}
@@ -14,6 +15,7 @@ laptop -> board:
   {"type":"reminder","reminder":str,"title":str,"message":str}
   {"type":"reminder_clear"}
   {"type":"baseline"}
+  {"type":"preview","on":bool}   (ask for / stop the live camera preview)
 """
 import json
 import time
@@ -49,3 +51,7 @@ def touch(action: str, reminder: str | None = None) -> str:
     if reminder:
         msg["reminder"] = reminder
     return json.dumps(msg)
+
+
+def frame(jpeg_b64: str) -> str:
+    return json.dumps({"type": "frame", "ts": now_ms(), "jpeg": jpeg_b64})

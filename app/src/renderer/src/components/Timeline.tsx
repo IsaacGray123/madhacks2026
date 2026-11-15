@@ -83,7 +83,7 @@ export default function Timeline({ segments, onRelabel }: { segments: Segment[];
       </div>
 
       {hover && !menu && (
-        <div className="pointer-events-none absolute bottom-full z-10 mb-2 w-60 -translate-x-1/2 rounded-xl border border-paper-line bg-white p-3 text-xs shadow-card" style={{ left: hover.x }}>
+        <div className="pointer-events-none absolute bottom-full z-10 mb-2 w-60 -translate-x-1/2 rounded-xl border border-paper-line bg-paper-card p-3 text-xs shadow-card" style={{ left: hover.x }}>
           <div className="flex items-center gap-2 font-semibold" style={{ color: ACTIVITY_META[hover.b.seg.state].color }}>
             {ACTIVITY_META[hover.b.seg.state].label}
             {hover.b.seg.tag && <span className="font-normal text-ink-soft">· {hover.b.seg.tag}</span>}
@@ -98,7 +98,7 @@ export default function Timeline({ segments, onRelabel }: { segments: Segment[];
       )}
 
       {menu && (
-        <div data-relabel-menu className="absolute bottom-full z-20 mb-2 w-56 -translate-x-1/2 rounded-xl border border-paper-line bg-white p-1.5 shadow-card pop-in" style={{ left: menu.x }}>
+        <div data-relabel-menu className="absolute bottom-full z-20 mb-2 w-56 -translate-x-1/2 rounded-xl border border-paper-line bg-paper-card p-1.5 shadow-card pop-in" style={{ left: menu.x }}>
           <div className="px-2.5 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Actually, I was…</div>
           {ACTIVITIES.map((a) => (
             <button

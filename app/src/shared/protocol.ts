@@ -31,7 +31,14 @@ export interface TouchMsg {
   action: 'start' | 'pause' | 'resume' | 'stop' | 'reminder_done' | 'reminder_dismiss'
   reminder?: ReminderType
 }
-export type BoardMessage = HelloMsg | VisionMsg | BoardEventMsg | TouchMsg
+/** Live camera preview frame; sent only to clients that asked with `preview {on:true}`. */
+export interface FrameMsg {
+  type: 'frame'
+  ts: number
+  /** Base64-encoded JPEG (about 320×240). */
+  jpeg: string
+}
+export type BoardMessage = HelloMsg | VisionMsg | BoardEventMsg | TouchMsg | FrameMsg
 
 // ---------- laptop → board ----------
 export interface SessionMsg {
@@ -59,9 +66,14 @@ export interface ReminderClearMsg {
 export interface BaselineMsg {
   type: 'baseline'
 }
-export type LaptopMessage = SessionMsg | StatsMsg | ReminderMsg | ReminderClearMsg | BaselineMsg
+/** Start/stop the live camera preview stream for this connection. */
+export interface PreviewMsg {
+  type: 'preview'
+  on: boolean
+}
+export type LaptopMessage = SessionMsg | StatsMsg | ReminderMsg | ReminderClearMsg | BaselineMsg | PreviewMsg
 
-const BOARD_TYPES = new Set(['hello', 'vision', 'event', 'touch'])
+const BOARD_TYPES = new Set(['hello', 'vision', 'event', 'touch', 'frame'])
 
 export function parseBoardMessage(raw: string): BoardMessage | null {
   try {

@@ -55,6 +55,7 @@ export interface EventRecord {
 
 export type WindowBehavior = 'minimize' | 'tray' | 'close'
 export type NotificationMode = 'custom' | 'pomodoro'
+export type ThemePreference = 'system' | 'light' | 'dark'
 
 export interface Settings {
   notificationsEnabled: boolean
@@ -67,6 +68,10 @@ export interface Settings {
   edgeBar: { enabled: boolean; position: 'top' | 'bottom'; opacity: number }
   distractionKeywords: string[]
   deviceAddress: string
+  /** Light/dark appearance. 'system' follows the OS setting. */
+  theme: ThemePreference
+  /** Show the live UNO Q camera feed on Home and during a session. */
+  cameraPreview: boolean
 }
 
 export interface DeviceStatus {

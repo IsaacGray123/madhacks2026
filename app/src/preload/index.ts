@@ -24,6 +24,8 @@ const api = {
   deleteAllData: (): Promise<void> => ipcRenderer.invoke('data:deleteAll'),
   loadDemoData: (): Promise<void> => ipcRenderer.invoke('data:loadDemo'),
   testConnection: (address: string): Promise<boolean> => ipcRenderer.invoke('device:test', address),
+  setCameraPreview: (on: boolean): Promise<void> => ipcRenderer.invoke('camera:preview', on),
+  onCameraFrame: (cb: (jpegBase64: string) => void) => subscribe('camera:frame', cb),
   onNavigate: (cb: (r: { page: string; id?: number }) => void) => subscribe('navigate', cb),
   onReminder: (cb: (r: ReminderPayload) => void) => subscribe('reminder', cb),
   reminderAction: (type: ReminderType, action: 'done' | 'dismiss'): Promise<void> => ipcRenderer.invoke('reminder:action', type, action),

@@ -1,15 +1,20 @@
+const v = (name) => `rgb(var(${name}) / <alpha-value>)`
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Dark mode follows prefers-color-scheme, which Electron's nativeTheme.themeSource drives from Settings.
+  darkMode: 'media',
   content: ['./src/renderer/index.html', './src/renderer/src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       fontFamily: { sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'] },
       colors: {
-        ink: { DEFAULT: '#1f2933', soft: '#52606d', faint: '#9aa5b1' },
-        paper: { DEFAULT: '#f7f7f5', card: '#ffffff', line: '#e8e8e4' },
-        accent: { DEFAULT: '#0f9d8a', soft: '#e3f4f1', dark: '#0b7a6b' }
+        // Values live in src/renderer/src/index.css so light/dark themes can swap them.
+        ink: { DEFAULT: v('--ink'), soft: v('--ink-soft'), faint: v('--ink-faint') },
+        paper: { DEFAULT: v('--paper'), card: v('--paper-card'), line: v('--paper-line') },
+        accent: { DEFAULT: v('--accent'), soft: v('--accent-soft'), dark: v('--accent-dark') }
       },
-      boxShadow: { card: '0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05)' },
+      boxShadow: { card: 'var(--shadow-card)' },
       borderRadius: { xl2: '1.25rem' }
     }
   },

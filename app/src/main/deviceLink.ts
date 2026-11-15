@@ -17,7 +17,15 @@ export class DeviceLink extends EventEmitter {
   private ws: WebSocket | null = null
   private retry: NodeJS.Timeout | null = null
   private address = ''
+  private previewOn = false
   connected = false
+
+  /** Ask the board to stream (or stop streaming) camera preview frames. Re-sent after reconnects. */
+  setPreview(on: boolean): void {
+    if (this.previewOn === on) return
+    this.previewOn = on
+    this.send({ type: 'preview', on })
+  }
 
   connect(address: string): void {
     if (address === this.address && this.ws) return
@@ -36,7 +44,10 @@ export class DeviceLink extends EventEmitter {
       return
     }
     this.ws = ws
-    ws.on('open', () => this.setConnected(true))
+    ws.on('open', () => {
+      this.setConnected(true)
+      if (this.previewOn) this.send({ type: 'preview', on: true })
+    })
     ws.on('message', (data) => {
       const msg = parseBoardMessage(data.toString())
       if (msg) this.emit('message', msg)

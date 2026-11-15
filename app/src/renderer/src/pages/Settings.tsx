@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import type { Settings, WindowBehavior } from '@shared/types'
+import type { Settings, ThemePreference, WindowBehavior } from '@shared/types'
 import { useSettings } from '../lib/hooks'
 import { Segmented } from './Home'
 
@@ -18,6 +18,12 @@ export default function SettingsPage(): JSX.Element {
         <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-ink-soft">Changes save automatically and apply to the next session (most apply right away).</p>
       </div>
+
+      <Group title="Appearance">
+        <Row label="Theme" desc="Light or dark colors for every StudyLens window. System follows your computer's setting.">
+          <Segmented<ThemePreference> value={s.theme} onChange={(v) => void save({ theme: v })} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} />
+        </Row>
+      </Group>
 
       <Group title="Notifications">
         <Row label="Reminders" desc="Turn self-care popups on or off. Your session is tracked either way.">
@@ -68,7 +74,7 @@ export default function SettingsPage(): JSX.Element {
               ] as [WindowBehavior, string, string][]
             ).map(([v, label, desc]) => (
               <label key={v} className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm transition-colors ${s.windowBehavior === v ? 'border-accent bg-accent-soft/50' : 'border-paper-line hover:bg-paper'}`}>
-                <input type="radio" className="mt-0.5 accent-[#0f9d8a]" checked={s.windowBehavior === v} onChange={() => void save({ windowBehavior: v })} />
+                <input type="radio" className="mt-0.5 accent-accent" checked={s.windowBehavior === v} onChange={() => void save({ windowBehavior: v })} />
                 <span>
                   <span className="font-medium">{label}</span>
                   {v === 'minimize' && <span className="ml-2 text-[10px] uppercase tracking-wider text-ink-faint">default</span>}
@@ -98,7 +104,7 @@ export default function SettingsPage(): JSX.Element {
             step={0.05}
             value={s.edgeBar.opacity}
             onChange={(e) => void save({ edgeBar: { ...s.edgeBar, opacity: Number(e.target.value) } })}
-            className="w-40 accent-[#0f9d8a]"
+            className="w-40 accent-accent"
           />
         </Row>
       </Group>
@@ -111,6 +117,9 @@ export default function SettingsPage(): JSX.Element {
 
       <Group title="Device">
         <DeviceRow address={s.deviceAddress} onSave={(v) => void save({ deviceAddress: v })} />
+        <Row label="Camera preview" desc="Shows the live UNO Q camera feed on Home and during a session. Video streams only while it's on screen and is never saved.">
+          <Toggle checked={s.cameraPreview} onChange={(v) => void save({ cameraPreview: v })} />
+        </Row>
       </Group>
 
       <Group title="Data">
@@ -121,7 +130,7 @@ export default function SettingsPage(): JSX.Element {
         </Row>
         <Row label="Delete all data" desc="Permanently removes every session from this computer. Settings are kept.">
           <button
-            className="btn border border-red-200 bg-white text-red-600 hover:bg-red-50"
+            className="btn border border-red-200 bg-paper-card text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
             onClick={() => {
               if (confirm('Delete all study sessions? This cannot be undone.')) void window.api.deleteAllData()
             }}
@@ -153,7 +162,7 @@ function DeviceRow({ address, onSave }: { address: string; onSave: (v: string) =
             Test
           </button>
         </div>
-        <span className={`text-xs ${test === 'ok' ? 'text-emerald-600' : test === 'fail' ? 'text-red-600' : 'text-ink-faint'}`}>
+        <span className={`text-xs ${test === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : test === 'fail' ? 'text-red-600 dark:text-red-400' : 'text-ink-faint'}`}>
           {test === 'testing' ? 'Connecting…' : test === 'ok' ? 'Connected ✓' : test === 'fail' ? 'Could not reach the board.' : ' '}
         </span>
       </div>

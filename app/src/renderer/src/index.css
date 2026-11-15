@@ -2,7 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  --ink: 31 41 51;          /* #1f2933 */
+  --ink-soft: 82 96 109;    /* #52606d */
+  --ink-faint: 154 165 177; /* #9aa5b1 */
+  --paper: 247 247 245;     /* #f7f7f5 */
+  --paper-card: 255 255 255;
+  --paper-line: 232 232 228;/* #e8e8e4 */
+  --accent: 15 157 138;     /* #0f9d8a */
+  --accent-soft: 227 244 241;
+  --accent-dark: 11 122 107;
+  --shadow-card: 0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ink: 230 233 236;
+    --ink-soft: 163 173 183;
+    --ink-faint: 110 121 132;
+    --paper: 20 24 28;      /* #14181c */
+    --paper-card: 29 34 39;
+    --paper-line: 46 53 60;
+    --accent: 20 176 155;
+    --accent-soft: 18 52 48;
+    --accent-dark: 15 157 138;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  }
+}
 html, body, #root { height: 100%; }
 body { @apply bg-paper text-ink font-sans antialiased; margin: 0; }
 html.overlay, html.overlay body { background: transparent !important; overflow: hidden; }
@@ -12,9 +39,9 @@ html.overlay, html.overlay body { background: transparent !important; overflow: 
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed; }
   .btn-primary { @apply btn bg-accent text-white hover:bg-accent-dark; }
   .btn-ghost { @apply btn text-ink-soft hover:bg-paper hover:text-ink; }
-  .btn-outline { @apply btn border border-paper-line bg-white text-ink hover:bg-paper; }
+  .btn-outline { @apply btn border border-paper-line bg-paper-card text-ink hover:bg-paper; }
   .label-xs { @apply text-[11px] font-semibold uppercase tracking-wider text-ink-faint; }
-  .input { @apply rounded-lg border border-paper-line bg-white px-3 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20; }
+  .input { @apply rounded-lg border border-paper-line bg-paper-card px-3 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20; }
 }
 
 @keyframes pop-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }

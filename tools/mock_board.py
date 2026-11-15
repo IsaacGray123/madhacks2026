@@ -4,6 +4,9 @@
     python tools/mock_board.py --webcam     # real MediaPipe pipeline on this laptop's webcam
     python tools/mock_board.py --fast       # scripted, states change every few seconds
 
+The live camera preview streams real frames with --webcam; in scripted mode it streams a generated
+test card (needs `pip install opencv-python`, otherwise no preview).
+
 Then set the laptop app's Settings > Device address to 127.0.0.1:8765.
 
 While it runs, type a command + Enter to force things:
@@ -37,6 +40,7 @@ class Mock:
         self.server = BoardServer(args.port, self.on_laptop)
         self.loop: asyncio.AbstractEventLoop | None = None
         self.webcam_result = None
+        self.webcam_frame = None
 
     async def on_laptop(self, msg):
         t = msg.get("type")
@@ -91,14 +95,51 @@ class Mock:
         while True:
             f = cam.read()
             if f is not None:
+                self.webcam_frame = f
                 self.webcam_result = clf.update(pipe.process(f))
                 for e in self.webcam_result.events:
                     self.send(protocol.event(e))
             time.sleep(1 / 3)
 
+    def test_card(self, state: str):
+        """Synthetic frame for the scripted mode so the laptop's preview has something to show."""
+        try:
+            import cv2
+            import numpy as np
+        except ImportError:
+            return None
+        img = np.full((240, 320, 3), (60, 52, 46), np.uint8)
+        t = time.time()
+        if state != "away":
+            cx = int(160 + 40 * np.sin(t * 0.8))
+            cv2.circle(img, (cx, 110), 46, (180, 200, 220), -1)
+            cv2.ellipse(img, (cx, 250), (90, 70), 0, 180, 360, (140, 120, 90), -1)
+        cv2.putText(img, f"MOCK  {state}", (12, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (240, 240, 240), 1, cv2.LINE_AA)
+        cv2.putText(img, time.strftime("%H:%M:%S"), (232, 228), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
+        return img
+
+    async def preview_loop(self):
+        from camera import encode_preview
+
+        while True:
+            await asyncio.sleep(1 / 3)
+            if not self.server.preview_wanted:
+                continue
+            f = self.webcam_frame if self.args.webcam else self.test_card(self.forced or self.state)
+            jpeg = None if f is None else encode_preview(f)
+            if jpeg:
+                await self.server.send_preview(protocol.frame(jpeg))
+
     async def run(self):
         self.loop = asyncio.get_running_loop()
+        self.server.on_preview = lambda on: print(f"  camera preview {'on' if on else 'off'}")
         await self.server.serve()
+        try:
+            import cv2  # noqa: F401  (camera.encode_preview needs it)
+
+            asyncio.create_task(self.preview_loop())
+        except ImportError:
+            print("  (pip install opencv-python to stream a mock camera preview)")
         print(f"Mock UNO Q on ws://127.0.0.1:{self.args.port}  — set Settings > Device to 127.0.0.1:{self.args.port}")
         threading.Thread(target=self.stdin_thread, daemon=True).start()
         if self.args.webcam:
@@ -114,6 +155,7 @@ class Mock:
                 state, face, slouch, conf = r.state, r.face, r.slouch, r.conf
             else:
                 state = self.forced or self.scripted_state(time.time() - t0)
+                self.state = state
                 face, slouch, conf = state not in ("away",), 0.1, 0.9
                 if state == "eating" and prev != "eating":
                     await self.server.broadcast(protocol.event("drank"))

@@ -6,6 +6,7 @@ import type { Route } from '../App'
 import { useSettings } from '../lib/hooks'
 import { StackBar } from '../components/ui'
 import Countdown from '../components/Countdown'
+import CameraPreview from '../components/CameraPreview'
 import SessionLive from './SessionLive'
 
 const BEHAVIOR_LABEL: Record<Settings['windowBehavior'], string> = {
@@ -125,6 +126,7 @@ export default function Home({
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          <CameraPreview device={dev} enabled={settings.cameraPreview} onToggle={(v) => void save({ cameraPreview: v })} />
           <div className="card pop-in p-7">
             <div className="label-xs mb-4">Last session</div>
             {last === undefined ? null : last ? (
@@ -157,7 +159,7 @@ export default function Home({
           </div>
           <div className="card pop-in p-6 text-sm text-ink-soft">
             <div className="label-xs mb-2">Privacy</div>
-            Video is analyzed on the UNO Q and never leaves it. Only activity labels like "studying" or "phone" are sent to this laptop.
+            Video is analyzed on the UNO Q. The camera preview streams to this laptop only while it's on screen and is never saved. Session history keeps only activity labels like "studying" or "phone".
           </div>
         </div>
       </div>
@@ -167,8 +169,8 @@ export default function Home({
 
 function Icon({ state }: { state: 'ok' | 'bad' | 'pending' | 'info' }): JSX.Element {
   const map = {
-    ok: ['bg-emerald-50 text-emerald-600', '✓'],
-    bad: ['bg-amber-50 text-amber-600', '!'],
+    ok: ['bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400', '✓'],
+    bad: ['bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400', '!'],
     pending: ['bg-paper text-ink-faint', '·'],
     info: ['bg-accent-soft text-accent', '•']
   } as const
@@ -196,7 +198,7 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
         <button
           key={v}
           onClick={() => onChange(v)}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${value === v ? 'bg-white text-ink shadow-card' : 'text-ink-soft hover:text-ink'}`}
+          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${value === v ? 'bg-paper-card text-ink shadow-card' : 'text-ink-soft hover:text-ink'}`}
         >
           {label}
         </button>

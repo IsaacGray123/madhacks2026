@@ -2,8 +2,10 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { ACTIVITY_META } from '@shared/colors'
 import { fmtDuration } from '@shared/format'
 import { ACTIVITIES, type Activity } from '@shared/types'
+import { useChartColors } from '../lib/hooks'
 
 export default function Donut({ totals, focusPct }: { totals: Record<Activity, number>; focusPct: number }): JSX.Element {
+  const chart = useChartColors()
   const data = ACTIVITIES.filter((a) => totals[a] > 0).map((a) => ({ key: a, name: ACTIVITY_META[a].label, value: totals[a] }))
   return (
     <div className="relative h-56 w-56 shrink-0">
@@ -16,7 +18,8 @@ export default function Donut({ totals, focusPct }: { totals: Record<Activity, n
           </Pie>
           <Tooltip
             formatter={(v: number, n: string) => [fmtDuration(v), n]}
-            contentStyle={{ borderRadius: 12, border: '1px solid #e8e8e4', fontSize: 12, boxShadow: '0 4px 16px rgba(16,24,40,.08)' }}
+            contentStyle={{ ...chart.tooltip, boxShadow: '0 4px 16px rgba(16,24,40,.08)' }}
+            itemStyle={{ color: chart.tooltip.color }}
           />
         </PieChart>
       </ResponsiveContainer>

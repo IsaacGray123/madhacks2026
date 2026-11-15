@@ -24,7 +24,9 @@ export const DEFAULT_SETTINGS: Settings = {
     'Hulu',
     'Disney+'
   ],
-  deviceAddress: 'unoq.local:8765'
+  deviceAddress: 'unoq.local:8765',
+  theme: 'system',
+  cameraPreview: true
 }
 
 /** Deep-ish merge so new settings keys get defaults when loading an older file. */

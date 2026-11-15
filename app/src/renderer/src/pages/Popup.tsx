@@ -46,7 +46,7 @@ export default function Popup(): JSX.Element {
     <div className="flex h-full items-end justify-end p-2">
       <div
         key={nonce}
-        className={`relative w-full overflow-hidden rounded-2xl border border-paper-line bg-white shadow-[0_8px_30px_rgba(16,24,40,.16)] transition-all duration-200 ${leaving ? 'translate-y-2 opacity-0' : 'pop-in'}`}
+        className={`relative w-full overflow-hidden rounded-2xl border border-paper-line bg-paper-card shadow-[0_8px_30px_rgba(16,24,40,.16)] transition-all duration-200 ${leaving ? 'translate-y-2 opacity-0' : 'pop-in'}`}
       >
         <div className="flex gap-3 p-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-2xl">{icon}</div>

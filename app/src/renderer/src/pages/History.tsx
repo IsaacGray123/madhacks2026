@@ -4,12 +4,14 @@ import { ACTIVITY_META } from '@shared/colors'
 import { fmtDate, fmtDuration, fmtTime } from '@shared/format'
 import { computeTrends, startOfWeek, toListItem, weekBuckets, type SessionListItem } from '@shared/stats'
 import { Section, StackBar, StatCard } from '../components/ui'
+import { useChartColors } from '../lib/hooks'
 
 const WEEK = 7 * 24 * 3600 * 1000
 
 export default function History({ onOpen }: { onOpen: (id: number) => void }): JSX.Element {
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(Date.now()))
+  const chart = useChartColors()
 
   const load = (): void => void window.api.listSessions().then((l) => setItems(l.map(toListItem)))
   useEffect(load, [])
@@ -71,12 +73,12 @@ export default function History({ onOpen }: { onOpen: (id: number) => void }): J
         <div className="card h-72 p-6">
           <ResponsiveContainer>
             <BarChart data={week} barCategoryGap="28%">
-              <CartesianGrid vertical={false} stroke="#efefeb" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#9aa5b1', fontSize: 12 }} />
+              <CartesianGrid vertical={false} stroke={chart.grid} />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: chart.tick, fontSize: 12 }} />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#9aa5b1', fontSize: 12 }}
+                tick={{ fill: chart.tick, fontSize: 12 }}
                 width={44}
                 ticks={yTicks}
                 domain={[0, yTicks[yTicks.length - 1]]}
@@ -85,10 +87,11 @@ export default function History({ onOpen }: { onOpen: (id: number) => void }): J
               <Tooltip
                 cursor={{ fill: 'rgba(15,157,138,.06)' }}
                 formatter={(v: number, n: string) => [fmtDuration(v * 60_000), n === 'focusMin' ? 'Focused' : 'Other']}
-                contentStyle={{ borderRadius: 12, border: '1px solid #e8e8e4', fontSize: 12 }}
+                contentStyle={chart.tooltip}
+                labelStyle={{ color: chart.tooltip.color }}
               />
               <Bar dataKey="focusMin" stackId="a" fill={ACTIVITY_META.studying.color} radius={[0, 0, 4, 4]} />
-              <Bar dataKey="otherMin" stackId="a" fill="#dfe3e6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="otherMin" stackId="a" fill={chart.muted} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

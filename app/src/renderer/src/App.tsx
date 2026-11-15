@@ -44,7 +44,7 @@ export default function App(): JSX.Element {
                 key={t.key}
                 onClick={() => setRoute({ page: t.key })}
                 className={`relative rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  tab === t.key ? 'bg-white text-ink shadow-card' : 'text-ink-soft hover:text-ink'
+                  tab === t.key ? 'bg-paper-card text-ink shadow-card' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {t.label}

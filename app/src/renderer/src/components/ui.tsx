@@ -10,7 +10,10 @@ export function ActivityPill({ activity, size = 'md' }: { activity: Activity; si
   const m = ACTIVITY_META[activity]
   const cls = size === 'lg' ? 'px-4 py-1.5 text-base' : size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full font-medium ${cls}`} style={{ background: m.soft, color: m.color }}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-full bg-[var(--pill)] font-medium dark:bg-[var(--pill-dark)] ${cls}`}
+      style={{ ['--pill' as string]: m.soft, ['--pill-dark' as string]: `${m.color}2e`, color: m.color }}
+    >
       <Dot color={m.color} />
       {m.label}
     </span>

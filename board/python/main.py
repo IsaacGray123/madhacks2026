@@ -48,7 +48,8 @@ class BoardApp:
         self.pending_events: list[str] = []
         self.status = "idle"
         self.reminder_active: str | None = None
-        self.server = BoardServer(args.port, self.on_laptop)
+        self.server = BoardServer(args.port, self.on_laptop, self.on_preview)
+        self.worker: subprocess.Popen | None = None
         self.display = Display(self.on_touch)
         self.ip = local_ip()
         self.lock = threading.Lock()
@@ -61,10 +62,13 @@ class BoardApp:
         try:
             with subprocess.Popen(
                 [vision_python, "-u", str(python_dir / "vision_worker.py"), "--camera", str(self.args.camera)],
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 text=True,
             ) as worker:
                 atexit.register(worker.terminate)
+                self.worker = worker
+                self.on_preview(self.server.preview_wanted)  # a laptop may have asked before the worker started
                 try:
                     for line in worker.stdout:
                         try:
@@ -72,6 +76,9 @@ class BoardApp:
                         except json.JSONDecodeError:
                             log.warning("vision output: %s", line.rstrip())
                             continue
+                        jpeg = payload.pop("frame", None)
+                        if jpeg and self.loop and self.server.preview_wanted:
+                            asyncio.run_coroutine_threadsafe(self.server.send_preview(protocol.frame(jpeg)), self.loop)
                         sig = Signals(**payload)
                         res = self.classifier.update(sig)
                         with self.lock:
@@ -86,6 +93,7 @@ class BoardApp:
                             )
                     raise RuntimeError(f"Vision worker exited with code {worker.wait()}")
                 finally:
+                    self.worker = None
                     worker.terminate()
                     try:
                         worker.wait(timeout=5)
@@ -98,6 +106,18 @@ class BoardApp:
             with self.lock:
                 self.result = None
             self.display.setup(False, "Camera unavailable - see App Lab console", f"{self.ip}:{self.args.port}")
+
+    def on_preview(self, on: bool):
+        """Tell the vision worker to start/stop encoding preview frames (saves CPU when nobody is watching)."""
+        worker = self.worker
+        if worker is None or worker.stdin is None:
+            return
+        try:
+            worker.stdin.write(f"preview {1 if on else 0}\n")
+            worker.stdin.flush()
+        except (BrokenPipeError, ValueError, OSError):
+            pass
+        log.info("camera preview %s", "on" if on else "off")
 
     # ---------- laptop -> board ----------
     async def on_laptop(self, msg: dict):
