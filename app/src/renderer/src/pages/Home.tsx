@@ -68,7 +68,7 @@ export default function Home({
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{greet}. Ready to study?</h1>
       </div>
 
-      <div className="card overflow-hidden"><Companion settings={settings.companion} mood="welcome" /></div>
+      <Companion intro settings={settings.companion} mood="welcome" />
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="card pop-in p-7 lg:col-span-3">

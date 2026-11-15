@@ -17,7 +17,7 @@ export default function SessionLive({ status }: { status: LiveStatus }): JSX.Ele
   const breakLabel = status.pomodoroPhase === 'break' ? '🍅 Back to work' : status.pomodoroPhase === 'work' ? '🍅 Pomodoro' : TIMER_LABEL.break
 
   return (
-    <div className={`mx-auto space-y-6 ${showCamera ? 'max-w-5xl' : 'max-w-3xl'}`}>
+    <div className="mx-auto max-w-6xl space-y-6">
       <div className={showCamera ? 'grid gap-6 md:grid-cols-5' : ''}>
         <div className={`card pop-in flex flex-col justify-center p-6 text-center ${showCamera ? 'md:col-span-3' : ''}`}>
           <div className="label-xs">{paused ? 'Paused' : 'Session in progress'}</div>
@@ -31,7 +31,6 @@ export default function SessionLive({ status }: { status: LiveStatus }): JSX.Ele
             </span>
           </div>
           {status.window && !paused && <div className="mx-auto mt-3 max-w-md truncate text-xs text-ink-faint">On screen: {status.window.title || status.window.app}</div>}
-          {settings && <Companion compact settings={settings.companion} mood={companionMood(status.status, status.current, !status.device.connected || (status.device.lastSeen !== null && Date.now() - status.device.lastSeen < 5000))} />}
           <div className="mt-4 flex justify-center gap-3">
             <button className="btn-outline w-32" onClick={() => void (paused ? window.api.resumeSession() : window.api.pauseSession())}>
               {paused ? 'Resume' : 'Pause'}
@@ -43,6 +42,8 @@ export default function SessionLive({ status }: { status: LiveStatus }): JSX.Ele
         </div>
         {showCamera && <CameraPreview className="md:col-span-2" device={status.device} enabled onToggle={(v) => void save({ cameraPreview: v })} />}
       </div>
+
+      {settings && <Companion compact settings={settings.companion} mood={companionMood(status.status, status.current, !status.device.connected || (status.device.lastSeen !== null && Date.now() - status.device.lastSeen < 5000))} />}
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="card pop-in p-6">

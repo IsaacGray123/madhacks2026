@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { COMPANION_COLORS, MOOD_COPY, type CompanionMood } from '@shared/companion'
 import type { CompanionSettings } from '@shared/types'
 
@@ -48,23 +48,17 @@ export function Dino({ settings, mood }: { settings: CompanionSettings; mood: Co
   </svg>
 }
 
-export default function Companion({ settings, mood, compact = false }: { settings: CompanionSettings; mood: CompanionMood; compact?: boolean }): JSX.Element {
-  const [arrival, setArrival] = useState(mood === 'welcome')
-  useEffect(() => { if (mood !== 'welcome') return; setArrival(true); const t = setTimeout(() => setArrival(false), 4000); return () => clearTimeout(t) }, [mood])
-  return <section className={`companion-stage ${compact ? 'companion-compact' : ''}`} aria-label={`${settings.name}, your study companion`} data-mood={mood} data-arrival={arrival}>
+export default function Companion({ settings, mood, compact = false, intro = false }: { settings: CompanionSettings; mood: CompanionMood; compact?: boolean; intro?: boolean }): JSX.Element {
+  // Greetings are deliberately simple: the character belongs to the page, not a landscape tile.
+  if (intro || mood === 'welcome') return <section className="companion-intro" data-mood="welcome" aria-label={`${settings.name}, your study companion`}>
+    <div className="companion-intro-avatar" aria-hidden="true"><Dino settings={settings} mood="welcome" /></div>
+    <div><div className="companion-caption"><span className="label-xs">Your study buddy</span><span className="companion-name">{settings.name}</span></div><p className="companion-message">{MOOD_COPY.welcome}</p></div>
+  </section>
+  return <section className={`companion-stage ${compact ? 'companion-compact' : ''}`} aria-label={`${settings.name}, your study companion`} data-mood={mood}>
     <div className="companion-caption"><span className="label-xs">Your study buddy</span><span className="companion-name">{settings.name}</span></div>
     <div className="companion-meadow" aria-hidden="true">
-      <svg className="meadow-landscape" viewBox="0 0 900 210" preserveAspectRatio="none">
-        <path className="hill-distant" d="M0 127 Q120 56 249 121 T513 107 T750 102 T950 99 V210 H0Z" />
-        <path className="hill-near" d="M0 160 Q155 117 299 155 T597 150 T950 147 V210 H0Z" />
-        <path className="meadow-trail" d="M-20 193 Q206 163 438 184 T930 178" />
-      </svg>
-      <span className="meadow-sun" /><span className="meadow-cloud cloud-one" /><span className="meadow-cloud cloud-two" />
-      <span className="meadow-grass grass-one" /><span className="meadow-grass grass-two" /><span className="meadow-grass grass-three" />
-      <span className="meadow-flower flower-one" /><span className="meadow-flower flower-two" />
       <span className="meadow-butterfly"><i /><i /></span>
       <div className="companion-walk"><div className="companion-turn"><div key={mood} className="companion-hop"><div className="companion-bob"><Dino settings={settings} mood={mood} /></div></div></div></div>
-      <div className="meadow-floor" />
     </div>
     <p className="companion-message" role="status">{MOOD_COPY[mood]}</p>
   </section>

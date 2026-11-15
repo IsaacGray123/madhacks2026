@@ -349,6 +349,7 @@ int companionPalette = 0, companionMood = -1;
 bool companionGlasses = true;
 unsigned long companionChanged = 0, companionFrameAt = 0;
 int companionDrawMode = -1, companionCaptionMood = -999;
+int companionSpriteX = -1, companionSpriteY = -1;
 const uint16_t DINO_BODY[4] = {0x85AB, 0x7D78, 0xE550, 0xB4D9};
 const uint16_t DINO_SPINE[4] = {0x53C7, 0x4372, 0xAB6A, 0x7B13};
 const uint16_t DINO_BELLY[4] = {0xE776, 0xDF7E, 0xF717, 0xEF1E};
@@ -481,46 +482,67 @@ uint16_t dinoTint(uint16_t color, int amount) {
   int blue = (((C_PAPER & 31) * (16 - amount)) + ((color & 31) * amount)) / 16;
   return (red << 11) | (green << 5) | blue;
 }
+int companionGroundY(int x) { return 306 + (x - 160) * (x - 160) / 2400; }
+uint16_t companionBackdrop(int x, int y, bool session) {
+  return session && y >= companionGroundY(x) && y < 400 ? dinoTint(DINO_BODY[companionPalette], 3) : C_PAPER;
+}
+void drawCompanionTerrain() {
+  SPI.beginTransaction(tftSpi);
+  setWindow(0, 244, W - 1, 399);
+  streamBegin();
+  for (int y = 244; y < 400; y++) for (int x = 0; x < W; x++) push(companionBackdrop(x, y, true));
+  streamEnd(); SPI.endTransaction();
+}
 void animateCompanion() {
   if (mode != SESSION && mode != SETUP) return;
   unsigned long now = millis();
   if (now - companionFrameAt < 120 && companionDrawMode == (int)mode) return;
   companionFrameAt = now;
   bool session = mode == SESSION;
-  int tileX = 108, tileY = session ? 244 : 158;
   if (companionDrawMode != (int)mode) {
-    if (session) { fillRect(0, 222, W, 118, C_PAPER); centered(160, 225, companionName, C_ACCENT, 2, C_PAPER); }
+    if (session) { fillRect(0, 222, W, 22, C_PAPER); centered(160, 225, companionName, C_ACCENT, 2, C_PAPER); }
     companionDrawMode = (int)mode;
     companionCaptionMood = -999;
+    companionSpriteX = -1;
   }
   int phase = now / 120;
-  int mood = session ? (sessionStatus == "paused" ? -2 : companionMood) : -1;
-  int travel = (mood == 0 || mood == -1) ? (phase % 88 < 44 ? phase % 44 : 43 - phase % 44) - 22 : 0;
-  bool flip = (mood == 0 || mood == -1) && phase % 88 < 44;
+  int mood = session ? (sessionStatus == "paused" ? -2 : companionMood) : -3;
+  int progress = (phase * 2) % 432;
+  int tileX = mood == 0 ? 16 + (progress <= 216 ? progress : 432 - progress) : 124;
+  int tileY = session ? companionGroundY(tileX + 36) - 66 : 158;
+  bool flip = mood == 0 && progress <= 216;
   int jump = now - companionChanged < 600 ? (int)(600 - (now - companionChanged)) / 75 : 0;
   bool blink = phase % 43 == 0;
-  uint16_t sky = dinoTint(DINO_BODY[companionPalette], 1);
-  uint16_t hill = dinoTint(DINO_BODY[companionPalette], 3);
-  uint16_t grass = dinoTint(DINO_SPINE[companionPalette], 7);
+  // Redraw only the union of the old/new sprite tiles. Wide roaming does not require
+  // repainting the entire screen every frame; terrain under the old sprite is restored.
+  int left = tileX, top = tileY, right = tileX + 71, bottom = tileY + 71;
+  if (companionSpriteX >= 0) {
+    if (companionSpriteX < left) left = companionSpriteX;
+    if (companionSpriteY < top) top = companionSpriteY;
+    if (companionSpriteX + 71 > right) right = companionSpriteX + 71;
+    if (companionSpriteY + 71 > bottom) bottom = companionSpriteY + 71;
+  }
   SPI.beginTransaction(tftSpi);
-  setWindow(tileX, tileY, tileX + 103, tileY + 71);
+  setWindow(left, top, right, bottom);
   streamBegin();
-  for (int y = 0; y < 72; y++) for (int x = 0; x < 104; x++) {
-    int sx = (x - 24 - travel) / 2, sy = (y - 8 + jump) / 2;
-    uint16_t background = y > 48 + (x-52)*(x-52)/180 ? hill : sky;
-    if ((x-82)*(x-82) + (y-13)*(y-13) < 20) background = DINO_BELLY[companionPalette];
-    if (y == 66 && x > 8 && x < 96) background = grass;
-    if ((x == 12 || x == 88) && y >= 63 && y <= 65) background = grass;
-    if (flip) sx = 27 - sx;
-    uint16_t pixel = x < 24 + travel || y < 8 - jump ? C_PAPER : dinoPixel(sx, sy, mood, phase, blink);
-    push(pixel == C_PAPER ? background : pixel);
+  for (int y = top; y <= bottom; y++) for (int x = left; x <= right; x++) {
+    int px = x - tileX - 8, py = y - tileY - 8 + jump;
+    uint16_t pixel = C_PAPER;
+    if (px >= 0 && py >= 0) {
+      int sx = px / 2;
+      if (flip) sx = 27 - sx;
+      pixel = dinoPixel(sx, py / 2, mood, phase, blink);
+    }
+    push(pixel == C_PAPER ? companionBackdrop(x, y, session) : pixel);
   }
   streamEnd(); SPI.endTransaction();
+  companionSpriteX = tileX; companionSpriteY = tileY;
   if (session && mood != companionCaptionMood) {
     companionCaptionMood = mood;
-    fillRect(0, 322, W, 12, C_PAPER);
+    uint16_t ground = dinoTint(DINO_BODY[companionPalette], 3);
+    fillRect(0, 322, W, 12, ground);
     const char *hint = mood == 1 ? "One more page?" : mood == 2 ? "A tiny reset." : mood == 3 ? "Saving your spot." : mood == 5 || mood == -2 ? "Rest a little." : "Growing together.";
-    centered(160, 324, hint, C_SOFT, 1, C_PAPER);
+    centered(160, 324, hint, C_SOFT, 1, ground);
   }
 }
 
@@ -553,8 +575,7 @@ void drawSetup(String *p, int n) {
   }
   if (face != shown.face) {  // framing guide
     uint16_t c = face ? C_STUDY : C_DISTRACT;
-    outlineRoundRect(60, 96, 200, 180, 18, 3, c, face ? C_GREEN_SOFT : C_AMBER_SOFT);
-    fillRect(64, 100, 192, 172, C_PAPER);
+    fillRect(60, 96, 200, 180, C_PAPER);
     centered(160, 111, companionName, C_ACCENT, 2, C_PAPER);
     centered(160, 137, face ? "I can see you!" : "Find your frame", c, 1, C_PAPER);
     companionDrawMode = -1;
@@ -589,6 +610,7 @@ void drawSession(const String &payload) {
 
   if (mode != SESSION || status != sessionStatus) {
     fillScreen(C_PAPER);
+    drawCompanionTerrain();
     text(190, 44, "session time", C_SOFT, 1, C_PAPER);
     companionDrawMode = -1;
     for (int i = 0; i < SE_ROWS; i++) text(16, SE_ROW_Y + i * SE_ROW_H, ACT_LABELS[i], C_INK, 2, C_PAPER);

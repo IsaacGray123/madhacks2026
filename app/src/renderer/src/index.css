@@ -60,15 +60,22 @@ html.overlay, html.overlay body { background: transparent !important; overflow: 
   :root[data-companion-color="lavender"] { --accent: 199 173 225; --accent-dark: 165 137 193; --accent-soft: 48 36 59; }
 }
 
-/* A quiet pocket meadow, tinted by the companion's chosen palette. */
+/* Open mountain slope, tinted by the companion palette and spanning the page. */
 body { background-image: radial-gradient(ellipse at 10% 0%, rgb(var(--accent-soft) / .6), transparent 65%); background-attachment: fixed; }
 html.overlay body { background-image: none; }
-.companion-stage { position: relative; isolation: isolate; overflow: hidden; text-align: center; padding: 20px 22px 17px; background: linear-gradient(180deg, rgb(var(--accent-soft) / .9), rgb(var(--paper-card)) 145%); }
-.companion-stage::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; background-image: radial-gradient(rgb(var(--accent) / .12) .65px, transparent .65px); background-size: 7px 7px; opacity: .28; mask-image: linear-gradient(180deg, #000, transparent 85%); }
+.companion-stage { position: relative; isolation: isolate; overflow: hidden; text-align: center; padding: 18px 0 25px; border: 0; border-radius: 0; background: transparent; }
+.companion-stage::before { content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none; background: linear-gradient(180deg, transparent, rgb(var(--accent-soft) / .5) 65%, transparent); }
+.companion-stage::after { content: ''; position: absolute; z-index: -1; pointer-events: none; top: 52%; left: -10%; width: 120%; bottom: -20px; border-radius: 50% 50% 0 0 / 45% 45% 0 0; background: rgb(var(--accent) / .12); mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 100%); }
 .companion-caption { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .companion-name { font-size: 14px; font-weight: 600; color: rgb(var(--accent)); letter-spacing: .04em; }
-.companion-meadow { position: relative; container-type: inline-size; width: min(100%, 980px); height: 200px; margin: 0 auto; overflow: hidden; border-radius: 22px; }
-.companion-message { margin: 12px 0 0; font-size: 12px; color: rgb(var(--ink-soft)); }
+.companion-meadow { position: relative; container-type: inline-size; width: 100%; height: 210px; margin: 0; overflow: hidden; }
+.companion-message { position: relative; margin: 8px 16px 0; font-size: 12px; color: rgb(var(--ink-soft)); }
+.companion-intro { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 4px 0; }
+.companion-intro-avatar { width: 96px; flex-shrink: 0; }
+.companion-intro .companion-caption { justify-content: flex-start; }
+.companion-intro .companion-message { margin: 7px 0 0; text-align: left; }
+.companion-intro .dino-foot, .companion-intro .dino-arm { animation: none; }
+.companion-intro .dino-head { transform: rotate(-3deg); }
 .companion-walk { --buddy-half: 77px; --walk-distance: max(0px, calc(50cqw - var(--buddy-half) - 30px)); position: absolute; left: calc(50% - var(--buddy-half)); bottom: 4px; width: 154px; z-index: 2; animation: dino-pace 24s ease-in-out infinite; }
 .companion-turn { animation: dino-turn 24s linear infinite; }
 .companion-hop { animation: dino-hop .65s cubic-bezier(.22,.6,.35,1) both; }
@@ -81,24 +88,10 @@ html.overlay body { background-image: none; }
 .dino-foot.back { animation-delay: -.65s; }
 .dino-arm { transform-origin: 88px 91px; animation: dino-arm .65s ease-in-out infinite alternate; }
 .dino-book, .dino-tear, .dino-snack, .dino-zzz, .dino-thought { opacity: 0; }
-.meadow-landscape { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.hill-distant { fill: rgb(var(--accent) / .07); }.hill-near { fill: rgb(var(--accent) / .085); }
-.meadow-trail { fill: none; stroke: rgb(var(--paper-card) / .55); stroke-width: 14; }
-.meadow-floor { position: absolute; height: 7px; bottom: 4px; left: 2%; right: 2%; border-top: 2px solid rgb(var(--accent) / .19); border-radius: 50%; background: rgb(var(--accent) / .06); }
-.meadow-sun { position: absolute; width: 30px; height: 30px; border: 6px solid rgb(var(--accent) / .06); background: rgb(var(--accent) / .16); border-radius: 50%; right: 18%; top: 23px; box-shadow: 0 0 0 10px rgb(var(--accent) / .025); }
-.meadow-cloud { position: absolute; width: 54px; height: 12px; border-radius: 15px; background: rgb(var(--paper-card) / .7); animation: cloud-drift 18s ease-in-out infinite alternate; }
-.meadow-cloud::before { content: ''; position: absolute; width: 20px; height: 18px; border-radius: 50%; left: 10px; bottom: 2px; background: inherit; }
-.cloud-one { left: 15%; top: 39px; }.cloud-two { right: 7%; top: 70px; width: 33px; animation-delay: -7s; }
-.meadow-grass { position: absolute; bottom: 5px; width: 9px; height: 11px; border-left: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(-12deg); color: rgb(var(--accent) / .4); }
-.meadow-grass::after { content: ''; position: absolute; width: 2px; height: 15px; bottom: 0; left: 3px; background: currentColor; transform: rotate(25deg); }
-.grass-one { left: 9%; }.grass-two { right: 12%; }.grass-three { left: 40%; height: 8px; opacity: .5; }
-.meadow-flower { position: absolute; bottom: 15px; width: 3px; height: 13px; background: rgb(var(--accent) / .24); }
-.meadow-flower::before { content: ''; position: absolute; top: -3px; left: -2px; width: 7px; height: 7px; border-radius: 50%; background: #d6b96c; box-shadow: -3px 0 0 rgb(var(--paper-card) / .8), 3px 0 0 rgb(var(--paper-card) / .8), 0 -3px 0 rgb(var(--paper-card) / .8), 0 3px 0 rgb(var(--paper-card) / .8); }
-.flower-one { left: 20%; }.flower-two { right: 28%; transform: scale(.75); }
 .meadow-butterfly { position: absolute; z-index: 1; top: 45px; left: calc(50% + 60px); width: 15px; height: 14px; opacity: 0; pointer-events: none; }
 .meadow-butterfly i { position: absolute; top: 2px; width: 7px; height: 10px; border-radius: 65% 65% 35% 65%; background: rgb(var(--accent) / .5); transform-origin: right center; animation: butterfly-wing .28s ease-in-out infinite alternate; }
 .meadow-butterfly i + i { left: 7px; transform-origin: left center; animation-delay: -.28s; }
-.companion-compact { margin-top: 12px; border-radius: 16px; padding: 10px 10px 10px; }.companion-compact .companion-meadow { height: 156px; }.companion-compact .companion-walk { --buddy-half: 62.5px; width: 125px; }.companion-compact .companion-message { margin-top: 7px; }
+.companion-compact { margin-top: 0; padding: 14px 0 22px; }.companion-compact .companion-meadow { height: 190px; }.companion-compact .companion-walk { --buddy-half: 62.5px; width: 125px; }.companion-compact .companion-message { margin-top: 5px; }
 [data-mood="welcome"] .companion-walk { animation-name: dino-welcome-pace; }
 [data-mood="welcome"] .companion-turn { animation-name: dino-welcome-turn; }
 [data-mood="studying"] .dino-book { animation: dino-read 24s infinite; }
