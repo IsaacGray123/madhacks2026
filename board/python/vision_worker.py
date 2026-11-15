@@ -1,4 +1,9 @@
-"""Run camera inference in Python 3.12 and send per-frame signals to main.py."""
+"""Run camera inference in Python 3.12 and send per-frame signals to main.py.
+
+stdout carries one JSON object per line:
+  {...Signals...}           AI results, ~TARGET_FPS
+  {"preview": "<base64>"}   camera preview frame, ~PREVIEW_FPS, only while main.py has turned preview on
+"""
 import argparse
 import contextlib
 from dataclasses import asdict
@@ -12,6 +17,28 @@ import config as C
 
 
 preview_on = threading.Event()
+out_lock = threading.Lock()  # the AI loop and the preview thread share stdout
+
+
+def emit(output, obj) -> None:
+    line = json.dumps(obj)
+    with out_lock:
+        print(line, file=output, flush=True)
+
+
+def preview_thread(camera, output, encode_preview):
+    """Streams the camera's latest frame at PREVIEW_FPS, independent of the slower AI loop."""
+    period = 1.0 / C.PREVIEW_FPS
+    while True:
+        started = time.monotonic()
+        if preview_on.is_set():
+            frame = camera.read()
+            jpeg = None if frame is None else encode_preview(frame)
+            if jpeg:
+                emit(output, {"preview": jpeg})
+            time.sleep(max(0.0, period - (time.monotonic() - started)))
+        else:
+            preview_on.wait(1.0)
 
 
 def control_thread():
@@ -34,26 +61,25 @@ def main():
         from vision import VisionPipeline
 
         threading.Thread(target=control_thread, daemon=True).start()
-        logging.info("Creating AI models")
-        pipeline = VisionPipeline()
+        # Open the camera first so the laptop's preview works while the AI models are still loading.
+        camera = Camera(args.camera)
         try:
-            camera = Camera(args.camera)
+            threading.Thread(target=preview_thread, args=(camera, output, encode_preview), daemon=True).start()
+            logging.info("Creating AI models")
+            pipeline = VisionPipeline()
             try:
-                logging.info("vision running at ~%.1f fps", C.TARGET_FPS)
+                logging.info("vision running at ~%.1f fps, preview up to %.0f fps", C.TARGET_FPS, C.PREVIEW_FPS)
                 period = 1.0 / C.TARGET_FPS
                 while True:
                     started = time.monotonic()
                     frame = camera.read()
                     if frame is not None:
-                        payload = asdict(pipeline.process(frame))
-                        if preview_on.is_set():
-                            payload["frame"] = encode_preview(frame)
-                        print(json.dumps(payload), file=output, flush=True)
+                        emit(output, asdict(pipeline.process(frame)))
                     time.sleep(max(0.0, period - (time.monotonic() - started)))
             finally:
-                camera.close()
+                pipeline.close()
         finally:
-            pipeline.close()
+            camera.close()
 
 
 if __name__ == "__main__":

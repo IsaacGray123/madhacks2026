@@ -7,6 +7,7 @@ FRAME_HEIGHT = 480
 TARGET_FPS = 3.0
 
 # --- live preview (sent to the laptop only while its camera preview is open) ---
+PREVIEW_FPS = 12.0             # preview runs on its own thread, separate from the AI's TARGET_FPS
 PREVIEW_WIDTH = 320            # frames are downscaled to this width before JPEG encoding
 PREVIEW_JPEG_QUALITY = 60
 

@@ -42,7 +42,7 @@ class Mock:
         self.server = BoardServer(args.port, self.on_laptop)
         self.loop: asyncio.AbstractEventLoop | None = None
         self.webcam_result = None
-        self.webcam_frame = None
+        self.cam = None  # set by webcam_thread; the preview reads its latest frame directly
 
     async def on_laptop(self, msg):
         t = msg.get("type")
@@ -96,11 +96,11 @@ class Mock:
         from classifier import ActivityClassifier
         from vision import VisionPipeline
 
-        cam, pipe, clf = Camera(self.args.camera), VisionPipeline(), ActivityClassifier()
+        cam = self.cam = Camera(self.args.camera)
+        pipe, clf = VisionPipeline(), ActivityClassifier()
         while True:
             f = cam.read()
             if f is not None:
-                self.webcam_frame = f
                 self.webcam_result = clf.update(pipe.process(f))
                 for e in self.webcam_result.events:
                     self.send(protocol.event(e))
@@ -124,13 +124,17 @@ class Mock:
         return img
 
     async def preview_loop(self):
+        import config as C
         from camera import encode_preview
 
         while True:
-            await asyncio.sleep(1 / 3)
+            await asyncio.sleep(1 / C.PREVIEW_FPS)
             if not self.server.preview_wanted:
                 continue
-            f = self.webcam_frame if self.args.webcam else self.test_card(self.forced or self.state)
+            if self.args.webcam:
+                f = self.cam.read() if self.cam else None
+            else:
+                f = self.test_card(self.forced or self.state)
             jpeg = None if f is None else encode_preview(f)
             if jpeg:
                 await self.server.send_preview(protocol.frame(jpeg))

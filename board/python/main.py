@@ -76,9 +76,12 @@ class BoardApp:
                         except json.JSONDecodeError:
                             log.warning("vision output: %s", line.rstrip())
                             continue
-                        jpeg = payload.pop("frame", None)
-                        if jpeg and self.loop and self.server.preview_wanted:
-                            asyncio.run_coroutine_threadsafe(self.server.send_preview(protocol.frame(jpeg)), self.loop)
+                        if "preview" in payload:  # camera preview frame, not AI output
+                            if self.loop and self.server.preview_wanted:
+                                asyncio.run_coroutine_threadsafe(
+                                    self.server.send_preview(protocol.frame(payload["preview"])), self.loop
+                                )
+                            continue
                         sig = Signals(**payload)
                         res = self.classifier.update(sig)
                         with self.lock:

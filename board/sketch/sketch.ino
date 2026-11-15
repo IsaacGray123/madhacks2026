@@ -306,7 +306,10 @@ bool readTouchRaw(int &rx, int &ry) {
 // Setup
 const int SU_START_X = 20, SU_START_Y = 404, SU_START_W = 280, SU_START_H = 56;
 // Session
-const int SE_ROW_Y = 108, SE_ROW_H = 40;  // 6 activity rows
+const int SE_ROW_Y = 108, SE_ROW_H = 56;  // activity rows (SE_ROWS of them)
+// Only the first 4 activities get a row: Studying, Phone, Distracted, Away. Eating and sleeping
+// still arrive in the S| totals (and show in the status chip) but have no row on this screen.
+const int SE_ROWS = 4;
 const int SE_TIMER_Y = 352, SE_TIMER_W = 66, SE_TIMER_H = 44, SE_TIMER_GAP = 8;
 const int SE_BTN_Y = 410, SE_BTN_H = 56, SE_PAUSE_X = 16, SE_STOP_X = 164, SE_BTN_W = 140;
 // Reminder
@@ -434,7 +437,7 @@ void drawSetup(String *p, int n) {
   }
 }
 
-// ---------- Session: S|status|current|elapsed|focus|t0..t5|w,e,b,y ----------
+// ---------- Session: S|status|current|elapsed|focus|t0..t5|w,e,b,y (rows drawn for t0..t3) ----------
 void drawSession(const String &payload) {
   String p[8];
   int n = split(payload, '|', p, 8);
@@ -451,7 +454,7 @@ void drawSession(const String &payload) {
   if (mode != SESSION || status != sessionStatus) {
     fillScreen(C_PAPER);
     text(222, 44, "focus", C_SOFT, 1, C_PAPER);
-    for (int i = 0; i < 6; i++) text(16, SE_ROW_Y + i * SE_ROW_H, ACT_LABELS[i], C_INK, 2, C_PAPER);
+    for (int i = 0; i < SE_ROWS; i++) text(16, SE_ROW_Y + i * SE_ROW_H, ACT_LABELS[i], C_INK, 2, C_PAPER);
     for (int i = 0; i < 4; i++) {
       int x = 16 + i * (SE_TIMER_W + SE_TIMER_GAP);
       fillRoundRect(x, SE_TIMER_Y, SE_TIMER_W, SE_TIMER_H, 8, C_WHITE);
@@ -483,12 +486,12 @@ void drawSession(const String &payload) {
   }
 
   // activity rows: label + time on one line, full-width bar below
-  long secs[6], mx = 1;
-  for (int i = 0; i < 6; i++) {
+  long secs[SE_ROWS], mx = 1;
+  for (int i = 0; i < SE_ROWS; i++) {
     secs[i] = t[i].toInt();
     if (secs[i] > mx) mx = secs[i];
   }
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < SE_ROWS; i++) {
     int y = SE_ROW_Y + i * SE_ROW_H;
     String ts = clockStr(secs[i]);
     if (ts != shown.barT[i]) {
