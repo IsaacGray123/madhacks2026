@@ -1,4 +1,2 @@
-mediapipe>=0.10.14
-# OpenCV (cv2) is supplied by the Arduino App Lab base image.
+# Camera inference uses Python 3.12. Run setup_vision.py inside the app container.
 websockets>=12
-numpy

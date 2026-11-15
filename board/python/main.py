@@ -8,15 +8,20 @@ Run on the UNO Q (Linux side):
 from __future__ import annotations
 
 import argparse
+import atexit
 import asyncio
+import json
 import logging
+import os
+from pathlib import Path
 import socket
+import subprocess
+import sys
 import threading
-import time
 
 import config as C
 import protocol
-from classifier import ActivityClassifier
+from classifier import ActivityClassifier, Signals
 from display import HAVE_BRIDGE, Display
 from server import BoardServer
 
@@ -50,30 +55,49 @@ class BoardApp:
 
     # ---------- vision thread ----------
     def vision_thread(self):
-        from camera import Camera
-        from vision import VisionPipeline
-
-        cam = Camera(self.args.camera)
-        pipe = VisionPipeline()
-        period = 1.0 / C.TARGET_FPS
-        log.info("vision running at ~%.1f fps", C.TARGET_FPS)
-        while True:
-            t0 = time.time()
-            frame = cam.read()
-            if frame is not None:
-                sig = pipe.process(frame)
-                res = self.classifier.update(sig)
-                with self.lock:
-                    self.result = res
-                    self.pending_events += res.events
-                if self.args.debug:
-                    log.info(
-                        "raw=%-8s state=%-8s face=%d pose=%d eyes=%.2f pitch=%+.0f phone=%s drink=%s food=%s slouch=%s",
-                        res.raw, res.state, sig.face, sig.pose, sig.eyes_closed, sig.head_pitch,
-                        bool(sig.phone), bool(sig.drink), bool(sig.food),
-                        None if res.slouch is None else round(res.slouch, 2),
-                    )
-            time.sleep(max(0.0, period - (time.time() - t0)))
+        python_dir = Path(__file__).resolve().parent
+        default_python = python_dir.parent / ".cache/vision312/bin/python" if HAVE_BRIDGE else sys.executable
+        vision_python = os.environ.get("STUDYLENS_VISION_PYTHON", str(default_python))
+        try:
+            with subprocess.Popen(
+                [vision_python, "-u", str(python_dir / "vision_worker.py"), "--camera", str(self.args.camera)],
+                stdout=subprocess.PIPE,
+                text=True,
+            ) as worker:
+                atexit.register(worker.terminate)
+                try:
+                    for line in worker.stdout:
+                        try:
+                            payload = json.loads(line)
+                        except json.JSONDecodeError:
+                            log.warning("vision output: %s", line.rstrip())
+                            continue
+                        sig = Signals(**payload)
+                        res = self.classifier.update(sig)
+                        with self.lock:
+                            self.result = res
+                            self.pending_events += res.events
+                        if self.args.debug:
+                            log.info(
+                                "raw=%-8s state=%-8s face=%d pose=%d eyes=%.2f pitch=%+.0f phone=%s drink=%s food=%s slouch=%s",
+                                res.raw, res.state, sig.face, sig.pose, sig.eyes_closed, sig.head_pitch,
+                                bool(sig.phone), bool(sig.drink), bool(sig.food),
+                                None if res.slouch is None else round(res.slouch, 2),
+                            )
+                    raise RuntimeError(f"Vision worker exited with code {worker.wait()}")
+                finally:
+                    worker.terminate()
+                    try:
+                        worker.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        worker.kill()
+                        worker.wait()
+                    atexit.unregister(worker.terminate)
+        except Exception:
+            log.exception("Camera inference stopped. On UNO Q, run python/setup_vision.py in the app container.")
+            with self.lock:
+                self.result = None
+            self.display.setup(False, "Camera unavailable - see App Lab console", f"{self.ip}:{self.args.port}")
 
     # ---------- laptop -> board ----------
     async def on_laptop(self, msg: dict):
@@ -132,6 +156,7 @@ class BoardApp:
         await self.server.serve()
         log.info("WebSocket server on ws://%s:%d  (enter %s:%d in the laptop app's Settings > Device)",
                  self.ip, self.args.port, self.ip, self.args.port)
+        self.display.setup(False, "Starting camera...", f"{self.ip}:{self.args.port}")
         threading.Thread(target=self.vision_thread, daemon=True).start()
         await self.publish_loop()
 
