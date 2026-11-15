@@ -26,7 +26,7 @@
 #define TOUCH_IRQ 2  // RPi pin 11 (not required; pressure is read over SPI)
 
 // ---------- touch calibration (raw XPT2046 -> screen). Tune with TOUCH_DEBUG. ----------
-#define TOUCH_DEBUG 1  // 1 = draw a dot + raw values on screen wherever you tap
+#define TOUCH_DEBUG 0  // 1 = draw a dot + raw values on screen wherever you tap
 #define TS_MINX 4454
 #define TS_MAXX 7880
 #define TS_MINY 4370
