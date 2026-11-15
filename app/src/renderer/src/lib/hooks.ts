@@ -14,11 +14,19 @@ export function useStatus(): LiveStatus | null {
 export function useSettings(): [Settings | null, (patch: Partial<Settings>) => Promise<void>] {
   const [s, setS] = useState<Settings | null>(null)
   useEffect(() => {
-    void window.api.getSettings().then(setS)
+    let active = true
+    const receive = (event: Event): void => { if (active) setS((event as CustomEvent<Settings>).detail) }
+    void window.api.getSettings().then(value => { if (active) setS(value) })
+    window.addEventListener('studylens-settings', receive)
+    const unsubscribe = window.api.onSettings?.(value => { if (active) setS(value) })
+    return () => { active = false; unsubscribe?.(); window.removeEventListener('studylens-settings', receive) }
   }, [])
+  useEffect(() => { if (s) document.documentElement.dataset.companionColor = s.companion.color }, [s?.companion.color])
   const save = useCallback(async (patch: Partial<Settings>) => {
     setS((cur) => (cur ? { ...cur, ...patch } : cur))
-    setS(await window.api.saveSettings(patch))
+    const saved = await window.api.saveSettings(patch)
+    setS(saved)
+    window.dispatchEvent(new CustomEvent('studylens-settings', { detail: saved }))
   }, [])
   return [s, save]
 }

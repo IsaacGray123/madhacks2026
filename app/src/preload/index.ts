@@ -8,6 +8,7 @@ function subscribe<T>(channel: string, cb: (v: T) => void): () => void {
 }
 
 const api = {
+  onSettings: (cb: (settings: Settings) => void) => subscribe('settings:changed', cb),
   getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
   saveSettings: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:save', patch),
   getStatus: (): Promise<LiveStatus> => ipcRenderer.invoke('status:get'),

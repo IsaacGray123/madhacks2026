@@ -66,7 +66,10 @@ export class SessionManager extends EventEmitter {
     })
     device.on('status', (connected) => {
       // A (re)connected board needs to know what screen to show.
-      if (connected) this.device.send({ type: 'session', status: this.status })
+      if (connected) {
+        this.device.send({ type: 'session', status: this.status })
+        this.device.send({ type: 'companion', companion: this.settings.companion })
+      }
       this.emitStatus()
     })
     // Keep the idle status (device checklist) fresh even before a session starts.
@@ -76,6 +79,7 @@ export class SessionManager extends EventEmitter {
   updateSettings(s: Settings): void {
     this.settings = s
     this.engine.updateSettings(s)
+    this.device.send({ type: 'companion', companion: s.companion })
   }
 
   get isActive(): boolean {

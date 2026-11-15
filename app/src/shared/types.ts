@@ -73,7 +73,11 @@ export interface BoardConnectionStatus {
   message: string
 }
 
+export type CompanionColor = 'green' | 'blue' | 'peach' | 'lavender'
+export interface CompanionSettings { name: string; color: CompanionColor; glasses: boolean }
+
 export interface Settings {
+  companion: CompanionSettings
   notificationsEnabled: boolean
   notificationMode: NotificationMode
   /** Minutes, except postureSeconds. */

@@ -8,6 +8,7 @@ import { StackBar } from '../components/ui'
 import Countdown from '../components/Countdown'
 import CameraPreview from '../components/CameraPreview'
 import SessionLive from './SessionLive'
+import Companion from '../components/Companion'
 
 const BEHAVIOR_LABEL: Record<Settings['windowBehavior'], string> = {
   minimize: 'Minimize to taskbar',
@@ -66,6 +67,8 @@ export default function Home({
         <p className="text-sm text-ink-faint">{new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{greet}. Ready to study?</h1>
       </div>
+
+      <div className="card overflow-hidden"><Companion settings={settings.companion} mood="welcome" /></div>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="card pop-in p-7 lg:col-span-3">

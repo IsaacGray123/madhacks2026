@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useStatus } from './lib/hooks'
+import CompanionPage from './pages/Companion'
 import Home from './pages/Home'
 import History from './pages/History'
 import Report from './pages/Report'
 import SettingsPage from './pages/Settings'
 
-export type Route = { page: 'home' } | { page: 'history' } | { page: 'settings' } | { page: 'report'; id: number }
+export type Route = { page: 'home' } | { page: 'history' } | { page: 'settings' } | { page: 'companion' } | { page: 'report'; id: number }
 
 export default function App(): JSX.Element {
   const [route, setRoute] = useState<Route>({ page: 'home' })
@@ -24,9 +25,10 @@ export default function App(): JSX.Element {
   const connected = status?.device.connected ?? false
   const live = status && status.status !== 'idle'
 
-  const tabs: { key: 'home' | 'history' | 'settings'; label: string }[] = [
+  const tabs: { key: 'home' | 'history' | 'companion' | 'settings'; label: string }[] = [
     { key: 'home', label: live ? 'Session' : 'Home' },
     { key: 'history', label: 'History' },
+    { key: 'companion', label: 'Companion' },
     { key: 'settings', label: 'Settings' }
   ]
 
@@ -62,6 +64,7 @@ export default function App(): JSX.Element {
         <div className="mx-auto max-w-6xl px-8 py-8">
           {route.page === 'home' && <Home status={status} onOpenReport={(id) => setRoute({ page: 'report', id })} onNavigate={setRoute} />}
           {route.page === 'history' && <History onOpen={(id) => setRoute({ page: 'report', id })} />}
+          {route.page === 'companion' && <CompanionPage />}
           {route.page === 'settings' && <SettingsPage />}
           {route.page === 'report' && <Report id={route.id} onBack={() => setRoute({ page: 'history' })} />}
         </div>
@@ -73,7 +76,7 @@ export default function App(): JSX.Element {
 function Logo(): JSX.Element {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <rect width="24" height="24" rx="6" fill="#0f9d8a" />
+      <rect width="24" height="24" rx="6" fill="rgb(var(--accent))" />
       <circle cx="12" cy="12" r="6.2" fill="none" stroke="#fff" strokeWidth="2" />
       <circle cx="12" cy="12" r="2.4" fill="#fff" />
     </svg>

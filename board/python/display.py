@@ -38,6 +38,7 @@ class Display:
     def __init__(self, on_touch: Callable[[str], None]):
         self.on_touch = on_touch
         self.last = ""
+        self.companion_fields = "Moss|green|1"
         if HAVE_BRIDGE:
             # Touch actions arrive as: start | pause | resume | stop | done | dismiss
             Bridge.provide("touch", self._touch)
@@ -60,8 +61,18 @@ class Display:
         else:
             log.debug("TFT <- %s", payload)
 
+    def companion(self, value: dict) -> None:
+        if not isinstance(value, dict):
+            return
+        name = _clean(str(value.get("name", "Moss")), 18).strip() or "Moss"
+        color = value.get("color", "green")
+        if color not in ("green", "blue", "peach", "lavender"):
+            color = "green"
+        self.companion_fields = f"{name}|{color}|{int(bool(value.get('glasses', True)))}"
+        self.last = ""
+
     def setup(self, face: bool, hint: str, ip: str) -> None:
-        self._send(f"U|{int(face)}|{_clean(hint)}|{ip}")
+        self._send(f"U|{int(face)}|{_clean(hint)}|{ip}|{self.companion_fields}")
 
     def stats(self, msg: dict) -> None:
         totals = msg.get("totals", {})
@@ -70,7 +81,7 @@ class Display:
         tm = ",".join(str(-1 if timers.get(k) is None else int(timers[k] // 1000)) for k in protocol.TIMER_KEYS)
         self._send(
             f"S|{msg.get('status', 'running')}|{msg.get('current') or 'none'}|{int(msg.get('elapsedMs', 0) // 1000)}"
-            f"|{int(msg.get('focusPct', 0))}|{t}|{tm}"
+            f"|{int(msg.get('focusPct', 0))}|{t}|{tm}|{self.companion_fields}"
         )
 
     def reminder(self, kind: str, title: str, message: str) -> None:

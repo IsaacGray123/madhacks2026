@@ -49,8 +49,9 @@
 #define C_AWAY 0x9D36
 #define C_EAT 0x3C1E
 #define C_SLEEP 0x8B7B
-#define C_ACCENT 0x0CF1
-#define C_ACCENT_DARK 0x0B8C
+uint16_t companionAccent = 0x4386, companionDark = 0x32C4;
+#define C_ACCENT companionAccent
+#define C_ACCENT_DARK companionDark
 #define C_PAPER 0xF7BE
 #define C_INK 0x1946
 #define C_SOFT 0x530D
@@ -306,7 +307,7 @@ bool readTouchRaw(int &rx, int &ry) {
 // Setup
 const int SU_START_X = 20, SU_START_Y = 404, SU_START_W = 280, SU_START_H = 56;
 // Session
-const int SE_ROW_Y = 108, SE_ROW_H = 56;  // activity rows (SE_ROWS of them)
+const int SE_ROW_Y = 66, SE_ROW_H = 37;  // activity rows (SE_ROWS of them)
 // Only the first 4 activities get a row: Studying, Phone, Distracted, Away. Eating and sleeping
 // still arrive in the S| totals (and show in the status chip) but have no row on this screen.
 const int SE_ROWS = 4;
@@ -341,6 +342,31 @@ struct {
   int face = -1;
   String hint, ip;
 } shown;
+
+// Companion settings ride along with U/S messages; old messages keep the defaults.
+String companionName = "Moss";
+int companionPalette = 0, companionMood = -1;
+bool companionGlasses = true;
+unsigned long companionChanged = 0, companionFrameAt = 0;
+int companionDrawMode = -1, companionCaptionMood = -999;
+const uint16_t DINO_BODY[4] = {0x85AB, 0x7D78, 0xE550, 0xB4D9};
+const uint16_t DINO_SPINE[4] = {0x53C7, 0x4372, 0xAB6A, 0x7B13};
+const uint16_t DINO_BELLY[4] = {0xE776, 0xDF7E, 0xF717, 0xEF1E};
+
+void readCompanion(String *p, int n, int start) {
+  if (n <= start + 2) return;
+  String name = p[start].substring(0, 18);
+  if (!name.length()) name = "Moss";
+  int palette = p[start + 1] == "blue" ? 1 : p[start + 1] == "peach" ? 2 : p[start + 1] == "lavender" ? 3 : 0;
+  bool glasses = p[start + 2] != "0";
+  if (name != companionName || palette != companionPalette || glasses != companionGlasses) {
+    companionName = name; companionPalette = palette; companionGlasses = glasses;
+    companionAccent = DINO_SPINE[palette]; companionDark = DINO_SPINE[palette];
+    // Force a full redraw once so buttons and the name pick up their new palette.
+    if (mode != REMINDER) mode = BOOT;
+    companionDrawMode = -1;
+  }
+}
 
 void resetShown() {
   shown.cur = -2; shown.focus = -1; shown.elapsed = ""; shown.chip = "";
@@ -391,6 +417,78 @@ void button(int x, int y, int w, int h, const String &label, uint16_t bg, uint16
 
 bool hit(int px, int py, int x, int y, int w, int h) { return px >= x && px < x + w && py >= y && py < y + h; }
 
+// Tiny procedural sprite. Stream a complete small tile to avoid erase/draw flicker.
+// All animation runs here, never on the bridge thread. No third-party graphics library.
+bool dinoOval(int x, int y, int cx, int cy, int rx, int ry) {
+  return (x-cx)*(x-cx)*ry*ry + (y-cy)*(y-cy)*rx*rx <= rx*rx*ry*ry;
+}
+uint16_t dinoPixel(int x, int y, int mood, int phase, bool blink) {
+  uint16_t body = DINO_BODY[companionPalette], spine = DINO_SPINE[companionPalette], belly = DINO_BELLY[companionPalette];
+  if (x < 0 || x >= 28 || y < 0 || y >= 30) return C_PAPER;
+  // Back plates and a short tail.
+  if ((x >= 17 && x <= 20 && y >= 4 && y <= 8) || (x >= 19 && x <= 22 && y >= 10 && y <= 13) ||
+      (x >= 20 && x <= 23 && y >= 16 && y <= 19)) return spine;
+  bool shape = dinoOval(x,y,11,8,9,6) || dinoOval(x,y,15,18,7,9) ||
+               (x >= 15 && x <= 25 && y >= 24 && y <= 26) || (x == 26 && y == 24);
+  int step = mood == 0 || mood == -1 ? (phase % 4 < 2 ? 1 : -1) : 0;
+  if ((x >= 8 && x <= 13 && y >= 25 && y <= 28 + step) ||
+      (x >= 17 && x <= 22 && y >= 25 && y <= 28 - step)) shape = true;
+  if (mood == 2 && x >= 8 && x <= 13 && y == 28 && phase % 2) shape = false;
+  if (shape) {
+    uint16_t c = body;
+    if (dinoOval(x,y,12,20,3,6)) c = belly;
+    // Round reading glasses; blink on a long, quiet cycle.
+    if (companionGlasses && y >= 5 && y <= 10 && x >= 4 && x <= 16) {
+      if (y == 5 || y == 10 || x == 4 || x == 9 || x == 11 || x == 16 || (x == 10 && y == 7)) c = C_INK;
+    }
+    if ((x == 7 || x == 13) && (y == 7 || (y == 8 && !blink && mood != 5 && mood != -2))) c = C_INK;
+    if (y == 12 && x >= 8 && x <= 11) c = spine;
+    if ((x == 5 || x == 15) && y == 11) c = 0xECAF;
+    if (mood == 1 && y >= 10 && y <= 15 && x >= 16 && x <= 18) c = spine; // holding head
+    if (mood == 0 && phase % 48 >= 18 && phase % 48 < 34 && y >= 18 && y <= 24 && x >= 5 && x <= 14) c = x == 10 ? belly : spine; // book
+    if (mood == 4 && y >= 16 && y <= 20 && x >= 5 && x <= 9) c = 0xEDCD; // snack
+    if (mood == 3 && x == 16 && y >= 10 && y <= 12 + phase % 3) c = 0x8E5B;
+    return c;
+  }
+  if (mood == -1 && x >= 1 && x <= 3 && y >= 13 - phase % 3 && y <= 18) return body; // hello wave
+  return C_PAPER;
+}
+void animateCompanion() {
+  if (mode != SESSION && mode != SETUP) return;
+  unsigned long now = millis();
+  if (now - companionFrameAt < 120 && companionDrawMode == (int)mode) return;
+  companionFrameAt = now;
+  bool session = mode == SESSION;
+  int tileX = 108, tileY = session ? 244 : 158;
+  if (companionDrawMode != (int)mode) {
+    if (session) { fillRect(0, 222, W, 118, C_PAPER); centered(160, 225, companionName, C_ACCENT, 2, C_PAPER); }
+    companionDrawMode = (int)mode;
+    companionCaptionMood = -999;
+  }
+  int phase = now / 120;
+  int mood = session ? (sessionStatus == "paused" ? -2 : companionMood) : -1;
+  int travel = (mood == 0 || mood == -1) ? (phase % 64 < 32 ? phase % 32 : 31 - phase % 32) - 16 : 0;
+  bool flip = (mood == 0 || mood == -1) && phase % 64 < 32;
+  int jump = now - companionChanged < 600 ? (int)(600 - (now - companionChanged)) / 75 : 0;
+  bool blink = phase % 43 == 0;
+  SPI.beginTransaction(tftSpi);
+  setWindow(tileX, tileY, tileX + 103, tileY + 71);
+  streamBegin();
+  for (int y = 0; y < 72; y++) for (int x = 0; x < 104; x++) {
+    int sx = (x - 24 - travel) / 2, sy = (y - 8 + jump) / 2;
+    if (x < 24 + travel || y < 8 - jump) { push(C_PAPER); continue; }
+    if (flip) sx = 27 - sx;
+    push(dinoPixel(sx, sy, mood, phase, blink));
+  }
+  streamEnd(); SPI.endTransaction();
+  if (session && mood != companionCaptionMood) {
+    companionCaptionMood = mood;
+    fillRect(0, 322, W, 12, C_PAPER);
+    const char *hint = mood == 1 ? "One more page?" : mood == 2 ? "A tiny reset." : mood == 3 ? "Saving your spot." : mood == 5 || mood == -2 ? "Rest a little." : "Growing together.";
+    centered(160, 324, hint, C_SOFT, 1, C_PAPER);
+  }
+}
+
 void drawBoot(const String &line) {
   fillScreen(C_PAPER);
   centered(W / 2, 190, "StudyLens", C_ACCENT, 3, C_PAPER);
@@ -421,8 +519,10 @@ void drawSetup(String *p, int n) {
   if (face != shown.face) {  // framing guide
     uint16_t c = face ? C_STUDY : C_DISTRACT;
     outlineRoundRect(60, 96, 200, 180, 18, 3, c, face ? C_GREEN_SOFT : C_AMBER_SOFT);
-    fillCircle(160, 160, 30, c);             // head
-    fillRoundRect(112, 200, 96, 60, 24, c);  // shoulders
+    fillRect(64, 100, 192, 172, C_PAPER);
+    centered(160, 111, companionName, C_ACCENT, 2, C_PAPER);
+    centered(160, 137, face ? "I can see you!" : "Find your frame", c, 1, C_PAPER);
+    companionDrawMode = -1;
     shown.face = face;
     shown.hint = "\x01";
   }
@@ -439,13 +539,14 @@ void drawSetup(String *p, int n) {
 
 // ---------- Session: S|status|current|elapsed|focus|t0..t5|w,e,b,y (rows drawn for t0..t3) ----------
 void drawSession(const String &payload) {
-  String p[8];
-  int n = split(payload, '|', p, 8);
+  String p[10];
+  int n = split(payload, '|', p, 10);
+  readCompanion(p, n, 7);
   if (n < 7) return;
   String status = p[1];
   int cur = actIndex(p[2]);
   long elapsed = p[3].toInt();
-  int focus = p[4].toInt();
+  // p[4] retains focus % for compatibility; elapsed time now occupies the header.
   String t[6], tm[4];
   split(p[5], ',', t, 6);
   split(p[6], ',', tm, 4);
@@ -453,7 +554,8 @@ void drawSession(const String &payload) {
 
   if (mode != SESSION || status != sessionStatus) {
     fillScreen(C_PAPER);
-    text(222, 44, "focus", C_SOFT, 1, C_PAPER);
+    text(190, 44, "session time", C_SOFT, 1, C_PAPER);
+    companionDrawMode = -1;
     for (int i = 0; i < SE_ROWS; i++) text(16, SE_ROW_Y + i * SE_ROW_H, ACT_LABELS[i], C_INK, 2, C_PAPER);
     for (int i = 0; i < 4; i++) {
       int x = 16 + i * (SE_TIMER_W + SE_TIMER_GAP);
@@ -467,7 +569,7 @@ void drawSession(const String &payload) {
   }
   sessionStatus = status;
 
-  // header: chip (left), focus % (right), big elapsed clock below
+  // Compact header: activity chip and elapsed time leave room for the companion.
   uint16_t chip = paused ? C_AWAY : (cur >= 0 ? ACT_COLORS[cur] : C_AWAY);
   String chipLabel = paused ? "Paused" : (cur >= 0 ? ACT_LABELS[cur] : "...");
   if (chipLabel != shown.chip) {
@@ -475,13 +577,10 @@ void drawSession(const String &payload) {
     centered(91, 23, chipLabel, C_WHITE, 2, chip);
     shown.chip = chipLabel;
   }
-  if (focus != shown.focus) {
-    text(220, 14, String(focus) + "%", C_STUDY, 3, C_PAPER, 96);
-    shown.focus = focus;
-  }
+  if (cur != companionMood) { companionMood = cur; companionChanged = millis(); }
   String el = clockStr(elapsed);
   if (el != shown.elapsed) {
-    text(16, 62, el, C_INK, 4, C_PAPER, 296);
+    rightText(174, 18, 130, el, C_INK, 2, C_PAPER);
     shown.elapsed = el;
   }
 
@@ -537,11 +636,12 @@ void restoreAfterReminder() {
 }
 
 void handle(const String &payload) {
-  String p[5];
-  int n = split(payload, '|', p, 5);
+  String p[10];
+  int n = split(payload, '|', p, 10);
   char kind = payload.length() ? payload[0] : '?';
   switch (kind) {
     case 'U':
+      readCompanion(p, n, 4);
       sessionStatus = "idle";
       if (mode != REMINDER) drawSetup(p, n);
       break;
@@ -690,6 +790,7 @@ void loop() {
     fillRect(W - 6, H - 6, 4, 4, beat ? C_STUDY : C_INK);
   }
 #endif
+  animateCompanion();
   pollTouch();
   delay(10);
 }

@@ -1,7 +1,7 @@
 // WebSocket contract between the UNO Q (server, port 8765) and the laptop app (client).
 // Mirrored in board/python/protocol.py — keep the two in sync.
 
-import type { Activity, Attention, CameraState, ReminderType, SessionStatus, TimerKey } from './types'
+import type { CompanionSettings, Activity, Attention, CameraState, ReminderType, SessionStatus, TimerKey } from './types'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 8765
@@ -73,7 +73,8 @@ export interface PreviewMsg {
   type: 'preview'
   on: boolean
 }
-export type LaptopMessage = SessionMsg | StatsMsg | ReminderMsg | ReminderClearMsg | BaselineMsg | PreviewMsg
+export interface CompanionMsg { type: 'companion'; companion: CompanionSettings }
+export type LaptopMessage = CompanionMsg | SessionMsg | StatsMsg | ReminderMsg | ReminderClearMsg | BaselineMsg | PreviewMsg
 
 const BOARD_TYPES = new Set(['hello', 'vision', 'event', 'touch', 'frame'])
 

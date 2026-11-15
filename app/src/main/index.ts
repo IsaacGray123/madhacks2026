@@ -169,6 +169,7 @@ function registerIpc(): void {
     connection.configure(s)
     registerHotkey(s.hotkey)
     syncEdgeBar(s, session.isActive)
+    for (const win of allWindows()) win.webContents.send('settings:changed', s)
     return s
   })
   ipcMain.handle('status:get', () => session.getStatus())

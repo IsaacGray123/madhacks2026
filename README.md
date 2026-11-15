@@ -52,3 +52,9 @@ python -m pytest board/python/tests      # classifier rules
 1. **On the UNO Q:** MediaPipe Face (eyes and head pitch), Pose (presence, shoulders and wrists) and EfficientDet (phone, cup, bottle, food) produce signals every frame. Rules in `board/python/classifier.py` turn those signals into `present / phone / away / eating / sleeping`, with a 6-second majority vote to stop flicker.
 2. **On the laptop:** `present` is refined using the foreground window. If the app or title matches a distraction keyword (YouTube, Reddit…), it counts as **Screen distraction**. Otherwise it counts as **Studying**.
 3. **After the session:** any wrong label can be fixed by clicking that block on the Report timeline.
+
+## A little study companion
+
+Moss is a small dinosaur who waves hello, paces, reads, and reacts to the session state. Open **Companion** to name them, choose Grass/Pond/Peach/Lilac colors (also used for the app accents), toggle glasses, and preview their expressions. The updated MCU sketch draws a matching pixel companion below the compact session stats.
+
+Desktop installers and board code must each be updated once. See [companion installation and behavior](board/COMPANION.md) for the packaged update, SSH commands, preserved calibration, and hardware checks.

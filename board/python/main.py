@@ -183,7 +183,9 @@ class BoardApp:
     # ---------- laptop -> board ----------
     async def on_laptop(self, msg: dict):
         t = msg.get("type")
-        if t == "session":
+        if t == "companion":
+            self.display.companion(msg.get("companion", {}))
+        elif t == "session":
             self.status = msg.get("status", "idle")
             if self.status == "idle":
                 self.reminder_active = None

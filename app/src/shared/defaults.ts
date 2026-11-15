@@ -1,6 +1,8 @@
 import type { Settings } from './types'
+import { normalizeCompanion } from './companion'
 
 export const DEFAULT_SETTINGS: Settings = {
+  companion: { name: 'Moss', color: 'green', glasses: true },
   notificationsEnabled: true,
   notificationMode: 'custom',
   intervals: { water: 40, eat: 150, break: 60, eye: 20, postureSeconds: 60 },
@@ -36,6 +38,7 @@ export function withDefaults(partial: Partial<Settings> | undefined): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...p,
+    companion: normalizeCompanion(p.companion),
     intervals: { ...DEFAULT_SETTINGS.intervals, ...(p.intervals ?? {}) },
     pomodoro: { ...DEFAULT_SETTINGS.pomodoro, ...(p.pomodoro ?? {}) },
     edgeBar: { ...DEFAULT_SETTINGS.edgeBar, ...(p.edgeBar ?? {}) },

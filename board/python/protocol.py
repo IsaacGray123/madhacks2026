@@ -15,6 +15,7 @@ laptop -> board:
   {"type":"reminder","reminder":str,"title":str,"message":str}
   {"type":"reminder_clear"}
   {"type":"baseline"}
+  {"type":"companion","companion":{"name":str,"color":"green|blue|peach|lavender","glasses":bool}}
   {"type":"preview","on":bool}   (ask for / stop the live camera preview)
 """
 import json

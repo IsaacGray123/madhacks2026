@@ -203,3 +203,13 @@ npm.cmd run dev
 - **Session flow:** Start runs a 3-2-1 countdown that captures the posture baseline. Stop goes straight to the Report.
 - Keep shared logic pure and unit-tested (`app/src/shared`, `board/python/classifier.py`). Run typecheck and tests before committing.
 - Git: work on `main`, remote `origin` = GitHub. Commit only when asked.
+
+
+## Companion update (November 15)
+
+- `app/src/shared/companion.ts` defines validated name/color/glasses preferences, mood mapping, and kind status copy. New settings default to Moss / grass green / glasses, including upgrades from older settings files.
+- `Companion.tsx` renders an SVG dinosaur with CSS animations, a four-second welcome wave, state-change hop, pacing, reading, phone worry, distracted foot tapping, away tear, and eating/rest poses. Reduced-motion is supported. A new Companion navigation tab previews moods and persists preferences. App accents follow the companion palette; activity colors retain their meaning.
+- `useSettings` publishes a local custom event so mounted settings consumers and theme accents stay synchronized. Preferences send through `SessionManager` on reconnect and settings changes as `companion` messages.
+- Python `Display` appends name/color/glasses to **every** U/S payload, because the sketch bridge has a one-message mailbox. Old sketches ignore these extra fields. The updated sketch keeps Pause/End/reminder hit boxes intact, compacts activity rows, moves elapsed time to the header, and streams a small procedural pixel sprite at a maximum of about 8fps. Real panel speed is unverified.
+- `board/install_companion.py` plus `app/dist/StudyLens Companion Board.zip` provide a one-time host-side deployment without the IDE. Preserve `config.py` and existing pin/touch/SPI tuning, back up replaced files, start through App CLI, and restore previous files if CLI fails. See `board/COMPANION.md`.
+- Verification: 31 Vitest tests and typecheck, Python transport/recovery tests, installer rollback/calibration tests, hidden Electron rendering/interactions in light/dark (no desktop capture), native stub C++ compilation and screen/state transitions. The updated sketch has **not** been compiled with the actual UNO Q toolchain or tested on the physical panel.
