@@ -155,8 +155,10 @@ class Mock:
             threading.Thread(target=self.webcam_thread, daemon=True).start()
         t0 = time.time()
         prev = None
+        import config as C
+
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(C.PUBLISH_INTERVAL_S)
             if self.args.webcam:
                 r = self.webcam_result
                 if r is None:

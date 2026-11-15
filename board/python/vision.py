@@ -106,6 +106,7 @@ class VisionPipeline:
                 g = lambda k: bs.get(k, 0.0)  # noqa: E731
                 s.eyes_closed = (g("eyeBlinkLeft") + g("eyeBlinkRight")) / 2
                 s.gaze_down = (g("eyeLookDownLeft") + g("eyeLookDownRight")) / 2
+                s.gaze_up = (g("eyeLookUpLeft") + g("eyeLookUpRight")) / 2
                 # Looking to one side turns one eye "out" and the other "in".
                 s.gaze_side = max(
                     (g("eyeLookOutLeft") + g("eyeLookInRight")) / 2,

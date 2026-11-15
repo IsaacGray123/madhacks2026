@@ -160,10 +160,10 @@ class BoardApp:
         if self.loop:
             asyncio.run_coroutine_threadsafe(self.server.broadcast(text), self.loop)
 
-    # ---------- 1 Hz publish ----------
+    # ---------- vision publish (every PUBLISH_INTERVAL_S) ----------
     async def publish_loop(self):
         while True:
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(C.PUBLISH_INTERVAL_S)
             with self.lock:
                 res, events, self.pending_events = self.result, self.pending_events, []
             if res is None:

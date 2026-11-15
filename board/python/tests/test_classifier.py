@@ -24,10 +24,25 @@ def test_present_by_default():
 def test_away_after_threshold_not_before():
     c = ActivityClassifier()
     _, t = feed(c, 5, **FACE)
-    r, t = feed(c, 6, start=t)          # 6s absent: still present
+    r, t = feed(c, 4, start=t)          # 4s absent: still present
     assert r.state == "present"
-    r, t = feed(c, 12, start=t)         # long absence -> away (after smoothing)
+    r, t = feed(c, 4, start=t)          # 8s absent (5s threshold + 1.5s switch) -> away
     assert r.state == "away"
+
+
+def test_state_switches_fast_but_ignores_one_odd_frame():
+    c = ActivityClassifier()
+    _, t = feed(c, 3, **FACE)
+    phone = dict(phone=(0.4, 0.6, 0.55, 0.85), wrists=[(0.47, 0.8)], **FACE)
+    r, t = feed(c, 1, start=t, **phone)            # 1 s of phone: not yet
+    assert r.state == "present"
+    r, t = feed(c, 1, start=t, **phone)            # 2 s: switched
+    assert r.state == "phone"
+    c.update(Signals(ts=t, **FACE))                # one frame without the phone...
+    r, t = feed(c, 2, start=t + 1 / 3, **phone)
+    assert r.state == "phone"                      # ...doesn't flip it back
+    r, _ = feed(c, 2, start=t, **FACE)             # put it down: back within ~1.5 s
+    assert r.state == "present"
 
 
 def test_phone_in_hand():
@@ -80,12 +95,40 @@ def test_looking_away_is_sustained_attention():
     c = ActivityClassifier()
     r, t = feed(c, 3, **FACE)
     assert r.attention == "screen"
-    r, t = feed(c, 5, start=t, head_yaw=40, **FACE)     # a quick glance doesn't count
+    r, t = feed(c, 2, start=t, head_yaw=25, **FACE)     # a 2 s glance doesn't count
     assert r.attention == "screen"
-    r, t = feed(c, 6, start=t, head_yaw=40, **FACE)     # 11 s turned away
+    r, t = feed(c, 2, start=t, **FACE)
+    r, t = feed(c, 4, start=t, head_yaw=25, **FACE)     # 4 s turned away
     assert r.attention == "away" and r.state == "present"
-    r, _ = feed(c, 1, start=t, **FACE)
+    r, t = feed(c, 0.67, start=t, **FACE)               # quick look back: still away
+    assert r.attention == "away"
+    r, _ = feed(c, 1.5, start=t, **FACE)                # really looking back
     assert r.attention == "screen"
+
+
+def test_looking_up_past_the_screen_is_away():
+    c = ActivityClassifier()
+    _, t = feed(c, 2, **FACE)
+    c.capture_baseline()
+    r, t = feed(c, 4, start=t, head_pitch=-15, **FACE)  # head tilted up
+    assert r.attention == "away"
+    c = ActivityClassifier()
+    r, _ = feed(c, 4, gaze_up=0.6, **FACE)              # eyes up, head still
+    assert r.attention == "away"
+
+
+def test_looking_down_at_notes_is_not_away():
+    c = ActivityClassifier()
+    r, _ = feed(c, 10, head_pitch=30, gaze_down=0.8, **FACE)
+    assert r.attention == "down" and r.state == "present"
+
+
+def test_head_turned_so_far_the_face_is_lost_is_away():
+    c = ActivityClassifier()
+    _, t = feed(c, 2, **FACE)
+    body_only = dict(FACE, face=False, mouth=None)
+    r, _ = feed(c, 4, start=t, **body_only)
+    assert r.attention == "away"
 
 
 def test_yaw_is_relative_to_baseline():

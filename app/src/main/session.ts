@@ -23,6 +23,8 @@ import type { DeviceLink } from './deviceLink'
 import type { WindowWatcher } from './windowWatcher'
 
 const VISION_STALE_MS = 5000
+/** How often the session re-evaluates the activity. The board sends vision updates every 0.5 s. */
+const TICK_MS = 500
 /** Screen-only mode: no keyboard/mouse for this long counts as away. */
 const IDLE_AWAY_SECONDS = 180
 
@@ -95,7 +97,7 @@ export class SessionManager extends EventEmitter {
     this.engine = new ReminderEngine(this.settings)
     this.status = 'running'
     this.watcher.start()
-    this.timer = setInterval(() => this.tick(), 1000)
+    this.timer = setInterval(() => this.tick(), TICK_MS)
     this.device.send({ type: 'session', status: 'running' })
     this.emit('started', s.id)
     this.tick()

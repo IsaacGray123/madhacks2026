@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 import statistics
-from collections import Counter, deque
+from collections import deque
 from dataclasses import dataclass, field
 
 import config as C
@@ -24,6 +24,7 @@ class Signals:
     head_pitch: float = 0.0         # degrees, positive = looking down (after PITCH_SIGN)
     head_yaw: float = 0.0           # degrees, head turned left/right (sign doesn't matter; compared to baseline)
     gaze_down: float = 0.0          # 0..1, eyes looking down (eyeLookDown blendshapes)
+    gaze_up: float = 0.0            # 0..1, eyes looking up (eyeLookUp blendshapes)
     gaze_side: float = 0.0          # 0..1, eyes turned to one side (eyeLookOut/In blendshapes)
     mouth: Point | None = None
     nose: Point | None = None
@@ -106,6 +107,10 @@ class ActivityClassifier:
         self.eyes_closed_since: float | None = None
         self.face_hidden_since: float | None = None
         self.look_away_since: float | None = None
+        self.look_back_since: float | None = None
+        self.looking_away = False
+        self.candidate: str | None = None
+        self.candidate_since = 0.0
         self.phone_pose_since: float | None = None
         self.phone_call_since: float | None = None
         self.history: deque[tuple[float, str]] = deque()
@@ -141,18 +146,40 @@ class ActivityClassifier:
 
     # ---- attention ----
     def attention(self, s: Signals) -> str | None:
-        """Where the user is looking: at the screen, down (desk/lap), or away (sustained)."""
+        """Where the user is looking: at the screen, down (desk/lap/keyboard), or away.
+
+        Away = head turned to the side, eyes turned to the side, or looking up/past the screen,
+        held for LOOK_AWAY_S. It ends only after looking back for LOOK_BACK_S, so a quick glance
+        at the screen doesn't split a distracted stretch. Turning far enough loses the face mesh,
+        so a visible body/hands without a face also counts as turned away.
+        """
         t = s.ts
-        if not s.face:
-            self.look_away_since = None
+        if not s.face and not (s.pose or s.hands):
+            self.look_away_since = self.look_back_since = None
+            self.looking_away = False
             return None
-        turned = abs(s.head_yaw - self.baseline_yaw) > C.LOOK_AWAY_YAW_DEG or s.gaze_side > C.GAZE_SIDE_THRESHOLD
-        if turned:
+        if s.face:
+            turned = abs(s.head_yaw - self.baseline_yaw) > C.LOOK_AWAY_YAW_DEG or s.gaze_side > C.GAZE_SIDE_THRESHOLD
+            up = (self.baseline_pitch - s.head_pitch) > C.LOOK_UP_DEG or s.gaze_up > C.GAZE_UP_THRESHOLD
+            away_now = turned or up
+        else:
+            away_now = True
+        if away_now:
+            self.look_back_since = None
             self.look_away_since = self.look_away_since if self.look_away_since is not None else t
             if t - self.look_away_since >= C.LOOK_AWAY_S:
-                return "away"
+                self.looking_away = True
         else:
             self.look_away_since = None
+            if self.looking_away:
+                self.look_back_since = self.look_back_since if self.look_back_since is not None else t
+                if t - self.look_back_since >= C.LOOK_BACK_S:
+                    self.looking_away = False
+                    self.look_back_since = None
+        if self.looking_away:
+            return "away"
+        if not s.face:
+            return None
         down = (s.head_pitch - self.baseline_pitch) > C.LOOKING_DOWN_DEG or s.gaze_down > C.GAZE_DOWN_THRESHOLD
         return "down" if down else "screen"
 
@@ -285,16 +312,19 @@ class ActivityClassifier:
         attention = self.attention(s)
         raw, events = self.raw_state(s, attention)
 
-        # Majority vote over the last few seconds to stop flicker.
+        # Switch once a new state has held for SWITCH_AFTER_S: fast, but one odd frame can't flip it.
+        if raw == self.stable:
+            self.candidate = None
+        elif raw != self.candidate:
+            self.candidate, self.candidate_since = raw, s.ts
+        if self.candidate is not None and s.ts - self.candidate_since >= C.SWITCH_AFTER_S:
+            self.stable, self.candidate = self.candidate, None
+
+        # Confidence: share of the last few seconds that agrees with the reported state.
         self.history.append((s.ts, raw))
         while self.history and s.ts - self.history[0][0] > C.SMOOTHING_WINDOW_S:
             self.history.popleft()
-        counts = Counter(st for _, st in self.history)
-        top, n = counts.most_common(1)[0]
-        # Ties keep the previous state.
-        if n > len(self.history) / 2 or top == self.stable:
-            self.stable = top
-        conf = counts[self.stable] / len(self.history)
+        conf = sum(1 for _, st in self.history if st == self.stable) / len(self.history)
 
         return Result(
             state=self.stable,

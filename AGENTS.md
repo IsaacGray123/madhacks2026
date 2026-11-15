@@ -20,8 +20,8 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 ```
 - **The laptop owns** session state, reminders and the database. The board only senses and displays.
 - **WebSocket protocol:** `app/src/shared/protocol.ts`, mirrored in `board/python/protocol.py`. Keep the two in sync.
-  - Board → laptop: `hello`, `vision {ts,state,conf,face,slouch,attention}` at 1 Hz, `event` (drank/ate), `touch` (start/pause/resume/stop/reminder_done/reminder_dismiss), and `frame {ts,jpeg}` (base64 JPEG, ~320 px wide, ~12 fps).
-    - `attention` is `screen` | `down` | `away` | null (no face). `away` is only sent after it has lasted `LOOK_AWAY_S`. It's optional on the TS side for older boards.
+  - Board → laptop: `hello`, `vision {ts,state,conf,face,slouch,attention}` every 0.5 s (`PUBLISH_INTERVAL_S`), `event` (drank/ate), `touch` (start/pause/resume/stop/reminder_done/reminder_dismiss), and `frame {ts,jpeg}` (base64 JPEG, ~320 px wide, ~12 fps).
+    - `attention` is `screen` | `down` | `away` | null (nobody in frame). `away` = head turned (`LOOK_AWAY_YAW_DEG`), eyes to the side (`GAZE_SIDE_THRESHOLD`), looking up past the screen (`LOOK_UP_DEG` / `GAZE_UP_THRESHOLD`), or body visible with the face lost. It starts after `LOOK_AWAY_S` (3 s) and ends only after `LOOK_BACK_S` (1 s) of looking back. `down` (notes/keyboard) is **not** distracted. It's optional on the TS side for older boards.
     - `frame` goes **only** to connections that sent `preview {on:true}`.
   - Laptop → board: `session`, `stats`, `reminder`, `reminder_clear`, `baseline`, `preview {on}`.
     - `server.py` handles `preview` itself: it tracks the set of subscribed clients and calls `on_preview(bool)` when the set goes empty or non-empty. `main.py`'s `on_laptop` never sees it.
@@ -47,7 +47,7 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 | `app/src/main/` | `index.ts` (tray, hotkey, IPC, window behavior), `session.ts` (SessionManager), `deviceLink.ts` (WS client, auto-reconnect), `windowWatcher.ts` (PowerShell user32 on Windows, osascript on macOS for dev), `db.ts` (JSON file store, atomic writes; no SQLite, deliberately), `settings.ts`, `windows.ts` (main window, reminder popup, edge bar) |
 | `app/src/preload/` | `window.api` contextBridge |
 | `app/src/renderer/` | Pages: Home, SessionLive, Report, History, Settings, Popup, EdgeBar. Components: Timeline, Donut, Countdown, CameraPreview, ui. `lib/hooks.ts`: `useStatus`, `useSettings`, `useDarkMode`, `useChartColors`, `useCameraFrame` |
-| `board/python/` | `main.py` (BoardApp; spawns the worker, forwards preview frames), `vision_worker.py` (separate Python 3.12 process: camera + models, JSON lines on stdout, `preview 1/0` on stdin), `camera.py` (latest-frame capture + `encode_preview`), `vision.py` (MediaPipe), `classifier.py` (pure rules + 6 s majority vote), `server.py`, `display.py` (Bridge), `protocol.py`, `config.py` (all thresholds), `setup_vision.py` (builds the 3.12 env in App Lab), `tests/` |
+| `board/python/` | `main.py` (BoardApp; spawns the worker, forwards preview frames), `vision_worker.py` (separate Python 3.12 process: camera + models, JSON lines on stdout, `preview 1/0` on stdin), `camera.py` (latest-frame capture + `encode_preview`), `vision.py` (MediaPipe), `classifier.py` (pure rules; the reported state switches once a new raw state holds `SWITCH_AFTER_S` = 1.5 s), `server.py`, `display.py` (Bridge), `protocol.py`, `config.py` (all thresholds), `setup_vision.py` (builds the 3.12 env in App Lab), `tests/` |
 | `board/python/main_full.py` | **Legacy** in-process version of `main.py`. Not maintained: no preview, attention or hand gestures. |
 | `board/python/download_models.sh` | Fetches the 4 models into `models/` (git-ignored, so they must be downloaded or copied onto the board) |
 | `board/sketch/sketch.ino` | MCU sketch: **no third-party libs**. Raw ILI9486 driver, built-in 5×7 font, raw XPT2046 touch. **Portrait 320×480**. The session screen shows **4 activity rows** (Studying, Phone, Distracted, Away; `SE_ROWS`). Eating and sleeping still arrive in `S|` totals and can appear in the status chip. |
@@ -68,7 +68,7 @@ pip install websockets && python tools/mock_board.py --fast
 #   stdin commands: s p a e z = force state, l = looking away, auto, start/pause/resume/stop/done/dismiss
 
 # board python tests (the local, git-ignored .venv has pytest + websockets: .venv/bin/python -m pytest ...)
-python -m pytest board/python/tests    # 14 tests
+python -m pytest board/python/tests    # 18 tests
 
 # on the UNO Q (App Lab terminal or SSH), inside the app's python/ folder
 ./download_models.sh                   # face, pose, object, hand models → models/
@@ -177,7 +177,7 @@ npm.cmd run dev
    - It was tested with the mock board and with a stub-model run of `vision_worker.py` (~12 fps, starts before the models finish loading).
    - If the preview stays on "Starting the camera feed…", the usual cause is that the board is still running old Python files (the console never logs `camera preview on`), or the laptop app wasn't fully restarted after preload/main changes.
 7. **Recognition v2 (gaze/attention, per-person calibration, hand gestures) is unit-tested only.**
-   - Thresholds in `config.py` need tuning on the real camera with `--debug`. Start with `GAZE_DOWN_THRESHOLD`, `HAND_ZONE_BELOW` (depends on camera height), `HANDS_TOGETHER` and `LOOK_AWAY_YAW_DEG`.
+   - Thresholds in `config.py` need tuning on the real camera with `--debug`. Start with `GAZE_DOWN_THRESHOLD`, `HAND_ZONE_BELOW` (depends on camera height), `HANDS_TOGETHER`, `LOOK_AWAY_YAW_DEG`, `GAZE_SIDE_THRESHOLD`, `GAZE_UP_THRESHOLD` and `LOOK_UP_DEG`. The faster timings (`SWITCH_AFTER_S`, `LOOK_AWAY_S`) trade some false "distracted" for speed; loosen them if glances at notes or a second monitor get flagged.
    - Check that inference still reaches ~3 fps with the hand model.
 8. **Dark mode** has been typechecked but not reviewed visually, especially Popup, EdgeBar and Report.
 
@@ -198,6 +198,7 @@ npm.cmd run dev
   - Anything per-person (posture ratio, head pitch/yaw, eyes-open level) is calibrated in `ActivityClassifier.capture_baseline()` during the 3-2-1 countdown.
   - The hand model is optional: `vision.py` logs a warning and skips hands if `models/hand_landmarker.task` is missing.
   - Face runs every frame. Hands / pose / hands / objects share a 4-frame rotation, and results carry over between runs.
+  - **Latency budget:** ~1.5 s switch delay on the board (plus any rule's own hold time, e.g. `PHONE_POSE_S`, `AWAY_AFTER_S`), then ≤0.5 s board publish and ≤0.5 s laptop `TICK_MS` in `session.ts`. Sleep timers stay long on purpose.
 - **Window behavior during a session** is user-selectable, default **minimize to taskbar**. The other options are hide to tray and close completely.
 - **Session flow:** Start runs a 3-2-1 countdown that captures the posture baseline. Stop goes straight to the Report.
 - Keep shared logic pure and unit-tested (`app/src/shared`, `board/python/classifier.py`). Run typecheck and tests before committing.
