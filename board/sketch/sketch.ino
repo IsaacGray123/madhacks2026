@@ -26,14 +26,14 @@
 #define TOUCH_IRQ 2  // RPi pin 11 (not required; pressure is read over SPI)
 
 // ---------- touch calibration (raw XPT2046 -> screen). Tune with TOUCH_DEBUG. ----------
-#define TOUCH_DEBUG 0  // 1 = draw a dot + raw values on screen wherever you tap
-#define TS_MINX 300
-#define TS_MAXX 3800
-#define TS_MINY 300
-#define TS_MAXY 3800
-#define TS_SWAP_XY 1   // portrait: the panel's long axis is raw X
-#define TS_FLIP_X 0
-#define TS_FLIP_Y 0
+#define TOUCH_DEBUG 1  // 1 = draw a dot + raw values on screen wherever you tap
+#define TS_MINX 4454
+#define TS_MAXX 7880
+#define TS_MINY 4370
+#define TS_MAXY 7894
+#define TS_SWAP_XY 0   // measured raw X follows screen X, raw Y follows screen Y
+#define TS_FLIP_X 1
+#define TS_FLIP_Y 1
 #define TS_PRESSURE 400  // higher = needs a firmer press
 // ========================================================
 
