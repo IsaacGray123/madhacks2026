@@ -55,6 +55,6 @@ python -m pytest board/python/tests      # classifier rules
 
 ## A little study companion
 
-Moss is a small dinosaur who waves hello, paces, reads, and reacts to the session state. Open **Companion** to name them, choose Grass/Pond/Peach/Lilac colors (also used for the app accents), toggle glasses, and preview their expressions. The updated MCU sketch draws a matching pixel companion below the compact session stats.
+Moss is a small dinosaur who greets you, paces through a tiny meadow, reads, and reacts to the session state. Open **Companion** to name them, choose Grass/Pond/Peach/Lilac colors (also used for the app accents), toggle glasses, and preview their expressions. The updated MCU sketch draws a matching pixel companion below the compact session stats.
 
 Desktop installers and board code must each be updated once. See [companion installation and behavior](board/COMPANION.md) for the packaged update, SSH commands, preserved calibration, and hardware checks.

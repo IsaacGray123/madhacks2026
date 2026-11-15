@@ -425,33 +425,61 @@ bool dinoOval(int x, int y, int cx, int cy, int rx, int ry) {
 uint16_t dinoPixel(int x, int y, int mood, int phase, bool blink) {
   uint16_t body = DINO_BODY[companionPalette], spine = DINO_SPINE[companionPalette], belly = DINO_BELLY[companionPalette];
   if (x < 0 || x >= 28 || y < 0 || y >= 30) return C_PAPER;
-  // Back plates and a short tail.
-  if ((x >= 17 && x <= 20 && y >= 4 && y <= 8) || (x >= 19 && x <= 22 && y >= 10 && y <= 13) ||
+  if (mood == 3) { // Curled up, head on paws, with a slow little tear.
+    if (y >= 17 && y <= 20 && ((x >= 17 && x <= 19) || (x >= 22 && x <= 24))) return spine;
+    if (dinoOval(x,y,9,23,8,5)) {
+      if (companionGlasses && y >= 20 && y <= 24 && x >= 3 && x <= 14 &&
+          (y == 20 || y == 24 || x == 3 || x == 8 || x == 10 || x == 14)) return C_INK;
+      if ((x == 6 || x == 12) && y == 22) return C_INK;
+      if (x == 13 && y >= 24 && y <= 24 + phase % 4) return 0x8E5B;
+      if (y == 26 && x >= 7 && x <= 10) return spine;
+      return body;
+    }
+    if (dinoOval(x,y,17,24,8,4) || (x >= 21 && x <= 26 && y >= 25 && y <= 27)) {
+      if (dinoOval(x,y,16,25,5,2)) return belly;
+      return body;
+    }
+    if (y == 28 && x >= 4 && x <= 15) return body;
+    return C_PAPER;
+  }
+  // The face moves independently: no floating hand or covering the face.
+  int headX = x;
+  int sequence = phase % 44;
+  if (y < 15 && mood == 1 && sequence >= 8 && sequence <= 23)
+    headX += (sequence / 3) % 2 ? 1 : -1;
+  if (y < 15 && mood == 2 && sequence >= 8 && sequence <= 30)
+    headX += sequence < 19 ? 1 : -1;
+  if ((headX >= 17 && headX <= 20 && y >= 4 && y <= 8) ||
+      (x >= 19 && x <= 22 && y >= 10 && y <= 13) ||
       (x >= 20 && x <= 23 && y >= 16 && y <= 19)) return spine;
-  bool shape = dinoOval(x,y,11,8,9,6) || dinoOval(x,y,15,18,7,9) ||
+  bool shape = dinoOval(headX,y,11,8,9,6) || dinoOval(x,y,15,18,7,9) ||
                (x >= 15 && x <= 25 && y >= 24 && y <= 26) || (x == 26 && y == 24);
   int step = mood == 0 || mood == -1 ? (phase % 4 < 2 ? 1 : -1) : 0;
   if ((x >= 8 && x <= 13 && y >= 25 && y <= 28 + step) ||
       (x >= 17 && x <= 22 && y >= 25 && y <= 28 - step)) shape = true;
-  if (mood == 2 && x >= 8 && x <= 13 && y == 28 && phase % 2) shape = false;
+  if (mood == 2 && x >= 8 && x <= 13 && y == 28 && phase % 6 < 3) shape = false;
+  if (mood == 2 && sequence >= 8 && sequence <= 28 && y >= 0 && y <= 3 && headX >= 20 && headX <= 26)
+    return (headX % 3 == 2 && y == 1) ? spine : belly; // small wandering-thought bubble
   if (shape) {
     uint16_t c = body;
     if (dinoOval(x,y,12,20,3,6)) c = belly;
-    // Round reading glasses; blink on a long, quiet cycle.
-    if (companionGlasses && y >= 5 && y <= 10 && x >= 4 && x <= 16) {
-      if (y == 5 || y == 10 || x == 4 || x == 9 || x == 11 || x == 16 || (x == 10 && y == 7)) c = C_INK;
+    if (companionGlasses && y >= 5 && y <= 10 && headX >= 4 && headX <= 16) {
+      if (y == 5 || y == 10 || headX == 4 || headX == 9 || headX == 11 || headX == 16 || (headX == 10 && y == 7)) c = C_INK;
     }
-    if ((x == 7 || x == 13) && (y == 7 || (y == 8 && !blink && mood != 5 && mood != -2))) c = C_INK;
-    if (y == 12 && x >= 8 && x <= 11) c = spine;
-    if ((x == 5 || x == 15) && y == 11) c = 0xECAF;
-    if (mood == 1 && y >= 10 && y <= 15 && x >= 16 && x <= 18) c = spine; // holding head
-    if (mood == 0 && phase % 48 >= 18 && phase % 48 < 34 && y >= 18 && y <= 24 && x >= 5 && x <= 14) c = x == 10 ? belly : spine; // book
-    if (mood == 4 && y >= 16 && y <= 20 && x >= 5 && x <= 9) c = 0xEDCD; // snack
-    if (mood == 3 && x == 16 && y >= 10 && y <= 12 + phase % 3) c = 0x8E5B;
+    if ((headX == 7 || headX == 13) && (y == 7 || (y == 8 && !blink && mood != 5 && mood != -2))) c = C_INK;
+    if (y == 12 && headX >= 8 && headX <= 11) c = spine;
+    if ((headX == 5 || headX == 15) && y == 11) c = 0xECAF;
+    if (mood == 0 && phase % 48 >= 18 && phase % 48 < 34 && y >= 18 && y <= 24 && x >= 5 && x <= 14) c = x == 10 ? belly : spine;
+    if (mood == 4 && y >= 16 && y <= 20 && x >= 5 && x <= 9) c = 0xEDCD;
     return c;
   }
-  if (mood == -1 && x >= 1 && x <= 3 && y >= 13 - phase % 3 && y <= 18) return body; // hello wave
   return C_PAPER;
+}
+uint16_t dinoTint(uint16_t color, int amount) {
+  int red = (((C_PAPER >> 11) * (16 - amount)) + ((color >> 11) * amount)) / 16;
+  int green = ((((C_PAPER >> 5) & 63) * (16 - amount)) + (((color >> 5) & 63) * amount)) / 16;
+  int blue = (((C_PAPER & 31) * (16 - amount)) + ((color & 31) * amount)) / 16;
+  return (red << 11) | (green << 5) | blue;
 }
 void animateCompanion() {
   if (mode != SESSION && mode != SETUP) return;
@@ -467,18 +495,25 @@ void animateCompanion() {
   }
   int phase = now / 120;
   int mood = session ? (sessionStatus == "paused" ? -2 : companionMood) : -1;
-  int travel = (mood == 0 || mood == -1) ? (phase % 64 < 32 ? phase % 32 : 31 - phase % 32) - 16 : 0;
-  bool flip = (mood == 0 || mood == -1) && phase % 64 < 32;
+  int travel = (mood == 0 || mood == -1) ? (phase % 88 < 44 ? phase % 44 : 43 - phase % 44) - 22 : 0;
+  bool flip = (mood == 0 || mood == -1) && phase % 88 < 44;
   int jump = now - companionChanged < 600 ? (int)(600 - (now - companionChanged)) / 75 : 0;
   bool blink = phase % 43 == 0;
+  uint16_t sky = dinoTint(DINO_BODY[companionPalette], 1);
+  uint16_t hill = dinoTint(DINO_BODY[companionPalette], 3);
+  uint16_t grass = dinoTint(DINO_SPINE[companionPalette], 7);
   SPI.beginTransaction(tftSpi);
   setWindow(tileX, tileY, tileX + 103, tileY + 71);
   streamBegin();
   for (int y = 0; y < 72; y++) for (int x = 0; x < 104; x++) {
     int sx = (x - 24 - travel) / 2, sy = (y - 8 + jump) / 2;
-    if (x < 24 + travel || y < 8 - jump) { push(C_PAPER); continue; }
+    uint16_t background = y > 48 + (x-52)*(x-52)/180 ? hill : sky;
+    if ((x-82)*(x-82) + (y-13)*(y-13) < 20) background = DINO_BELLY[companionPalette];
+    if (y == 66 && x > 8 && x < 96) background = grass;
+    if ((x == 12 || x == 88) && y >= 63 && y <= 65) background = grass;
     if (flip) sx = 27 - sx;
-    push(dinoPixel(sx, sy, mood, phase, blink));
+    uint16_t pixel = x < 24 + travel || y < 8 - jump ? C_PAPER : dinoPixel(sx, sy, mood, phase, blink);
+    push(pixel == C_PAPER ? background : pixel);
   }
   streamEnd(); SPI.endTransaction();
   if (session && mood != companionCaptionMood) {
