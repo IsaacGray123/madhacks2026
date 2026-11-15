@@ -1,4 +1,6 @@
 # Arduino App Lab app manifest (verify field names against your App Lab version).
 name: StudyLens
 description: Study session tracker - classifies what you're doing from the USB camera and drives the 3.5in TFT.
+ports:
+  - 8765
 icon: "📚"
