@@ -19,11 +19,16 @@ const BEHAVIOR_LABEL: Record<Settings['windowBehavior'], string> = {
 export default function Home({
   status,
   onOpenReport,
-  onNavigate
+  onNavigate,
+  touchStart = false,
+  onTouchStartHandled
 }: {
   status: LiveStatus | null
   onOpenReport: (id: number) => void
   onNavigate: (r: Route) => void
+  /** Start was tapped on the UNO Q touchscreen: run the countdown as if Start were clicked here. */
+  touchStart?: boolean
+  onTouchStartHandled?: () => void
 }): JSX.Element {
   const [settings, save] = useSettings()
   const [last, setLast] = useState<SessionListItem | null | undefined>(undefined)
@@ -34,6 +39,13 @@ export default function Home({
   }
   useEffect(loadLast, [status?.status])
 
+  const idle = status?.status === 'idle'
+  useEffect(() => {
+    if (!touchStart || !idle || !settings) return
+    setCounting({ screenOnly: false })
+    onTouchStartHandled?.()
+  }, [touchStart, idle, settings, onTouchStartHandled])
+
   if (status && status.status !== 'idle') return <SessionLive status={status} />
   if (!status || !settings) return <div />
 
@@ -42,10 +54,9 @@ export default function Home({
   const setMode = (m: 'off' | NotificationMode): void =>
     void save(m === 'off' ? { notificationsEnabled: false } : { notificationsEnabled: true, notificationMode: m })
 
-  const begin = (screenOnly: boolean): void => {
-    if (!screenOnly) void window.api.captureBaseline()
-    setCounting({ screenOnly })
-  }
+  // The eye/head/posture baseline is captured when the countdown ends, after the user has spent
+  // 3 s looking at their study screen as the countdown asks.
+  const begin = (screenOnly: boolean): void => setCounting({ screenOnly })
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -55,10 +66,14 @@ export default function Home({
       {counting && (
         <Countdown
           onDone={() => {
+            if (!counting.screenOnly) void window.api.captureBaseline()
             void window.api.startSession(counting.screenOnly)
             setCounting(null)
           }}
-          onCancel={() => setCounting(null)}
+          onCancel={() => {
+            setCounting(null)
+            void window.api.countdownCanceled()
+          }}
           baseline={!counting.screenOnly}
         />
       )}
@@ -86,6 +101,16 @@ export default function Home({
               title="Camera sees you"
               detail={!dev.connected ? 'Connect the UNO Q first.' : dev.faceDetected ? 'Face detected — you are in frame.' : 'Move into view of the camera.'}
             />
+            <li className="flex items-start gap-3">
+              <Icon state="info" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">Look at your study screen when you start</div>
+                <div className="text-xs leading-relaxed text-ink-soft">
+                  For the best results, sit as you normally study and look at the screen you'll be studying from during the 3-2-1 countdown.
+                  StudyLens uses that starting eye position to learn where your screen is and tell whether you're studying or looking away.
+                </div>
+              </div>
+            </li>
             <li className="flex items-start gap-3">
               <Icon state="info" />
               <div className="flex-1">

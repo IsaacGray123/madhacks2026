@@ -10,11 +10,14 @@ export type Route = { page: 'home' } | { page: 'history' } | { page: 'settings' 
 
 export default function App(): JSX.Element {
   const [route, setRoute] = useState<Route>({ page: 'home' })
+  // Set when Start was tapped on the UNO Q touchscreen: Home runs the 3-2-1 countdown.
+  const [touchStart, setTouchStart] = useState(false)
   const status = useStatus()
 
   useEffect(
     () =>
       window.api.onNavigate((r) => {
+        if (r.page === 'home' && r.countdown) setTouchStart(true)
         if (r.page === 'report' && r.id) setRoute({ page: 'report', id: r.id })
         else if (r.page === 'home' || r.page === 'history' || r.page === 'settings') setRoute({ page: r.page })
       }),
@@ -62,7 +65,15 @@ export default function App(): JSX.Element {
       </header>
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl px-8 py-8">
-          {route.page === 'home' && <Home status={status} onOpenReport={(id) => setRoute({ page: 'report', id })} onNavigate={setRoute} />}
+          {route.page === 'home' && (
+            <Home
+              status={status}
+              onOpenReport={(id) => setRoute({ page: 'report', id })}
+              onNavigate={setRoute}
+              touchStart={touchStart}
+              onTouchStartHandled={() => setTouchStart(false)}
+            />
+          )}
           {route.page === 'history' && <History onOpen={(id) => setRoute({ page: 'report', id })} />}
           {route.page === 'companion' && <CompanionPage />}
           {route.page === 'settings' && <SettingsPage />}

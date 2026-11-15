@@ -22,7 +22,7 @@ let savingBoardLogin = false
 const watcher = new WindowWatcher()
 let session: SessionManager
 
-function showMain(route?: { page: string; id?: number }): void {
+function showMain(route?: { page: string; id?: number; countdown?: boolean }): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createMainWindowWithGuards()
   mainWindow.setSkipTaskbar(false)
   if (mainWindow.isMinimized()) mainWindow.restore()
@@ -131,12 +131,32 @@ function wireSession(): void {
   })
   session.on('reminder', (r) => showReminderPopup(r))
   session.on('reminder-cleared', () => hideReminderPopup())
+  // Start tapped on the UNO Q: run the same 3-2-1 "look at your study screen" countdown on the laptop,
+  // so the eye/head baseline is taken while the user faces their study screen, not the TFT.
+  // The renderer captures the baseline and starts the session when the countdown ends.
   session.on('touch-start', () => {
-    device.send({ type: 'baseline' })
-    session.start(false)
+    clearTouchStartFallback()
+    showMain({ page: 'home', countdown: true })
+    // Safety net: if the window never runs the countdown (still loading, hidden), start anyway.
+    touchStartFallback = setTimeout(() => {
+      touchStartFallback = null
+      if (!session.isActive) {
+        device.send({ type: 'baseline' })
+        session.start(false)
+      }
+    }, TOUCH_START_FALLBACK_MS)
   })
+  session.on('started', () => clearTouchStartFallback())
   // Pause/resume from anywhere keeps the tray label right.
   session.on('status', () => updateTrayMenu())
+}
+
+let touchStartFallback: NodeJS.Timeout | null = null
+const TOUCH_START_FALLBACK_MS = 10_000
+
+function clearTouchStartFallback(): void {
+  if (touchStartFallback) clearTimeout(touchStartFallback)
+  touchStartFallback = null
 }
 
 // ---------- Camera preview ----------
@@ -174,6 +194,8 @@ function registerIpc(): void {
   })
   ipcMain.handle('status:get', () => session.getStatus())
   ipcMain.handle('session:baseline', () => device.send({ type: 'baseline' }))
+  // The countdown was canceled, so a pending touchscreen start must not fire.
+  ipcMain.handle('session:countdownCanceled', () => clearTouchStartFallback())
   ipcMain.handle('session:start', (_e, screenOnly: boolean) => session.start(screenOnly))
   ipcMain.handle('session:pause', () => session.pause())
   ipcMain.handle('session:resume', () => session.resume())
