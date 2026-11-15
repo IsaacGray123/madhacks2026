@@ -8,6 +8,8 @@ Context for AI coding agents (Codex, etc.) picking up this repo. Read this first
 - **Activities:** `studying`, `phone`, `distracted` (screen distraction, decided on the laptop), `away`, `eating`, `sleeping`.
 - **Reminders:** water, eat, break/stretch, posture, 20-20-20 eye rest. There's a master on/off toggle. **Custom** intervals or a **Pomodoro** preset (25/5, with a 15-min long break every 4 cycles). Reminders fire once. Sleeping is only logged.
 - **Demo priority:** the **Report** page, with a headline, donut chart, stat cards, an interactive timeline with post-session relabeling, insights and top distractions.
+- **Live camera preview** on Home (pre-flight) and the live session page. Video streams from the board only while a preview is on screen and is never stored.
+- **Appearance:** Settings → Appearance → Theme (System / Light / Dark).
 - **Roles:** the repo owner builds the apps with AI agents. Their teammate handles the UNO Q, camera and TFT hardware.
 
 ## Architecture
@@ -18,8 +20,18 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 ```
 - **The laptop owns** session state, reminders and the database. The board only senses and displays.
 - **WebSocket protocol:** `app/src/shared/protocol.ts`, mirrored in `board/python/protocol.py`. Keep the two in sync.
-  - Board → laptop: `hello`, `vision {ts,state,conf,face,slouch}` at 1 Hz, `event` (drank/ate), and `touch` (start/pause/resume/stop/reminder_done/reminder_dismiss).
-  - Laptop → board: `session`, `stats`, `reminder`, `reminder_clear`, `baseline`.
+  - Board → laptop: `hello`, `vision {ts,state,conf,face,slouch,attention}` at 1 Hz, `event` (drank/ate), `touch` (start/pause/resume/stop/reminder_done/reminder_dismiss), and `frame {ts,jpeg}` (base64 JPEG, ~320 px wide, ~12 fps).
+    - `attention` is `screen` | `down` | `away` | null (no face). `away` is only sent after it has lasted `LOOK_AWAY_S`. It's optional on the TS side for older boards.
+    - `frame` goes **only** to connections that sent `preview {on:true}`.
+  - Laptop → board: `session`, `stats`, `reminder`, `reminder_clear`, `baseline`, `preview {on}`.
+    - `server.py` handles `preview` itself: it tracks the set of subscribed clients and calls `on_preview(bool)` when the set goes empty or non-empty. `main.py`'s `on_laptop` never sees it.
+- **Camera preview pipeline:**
+  - Renderer `useCameraFrame` → IPC `camera:preview` → `DeviceLink.setPreview` (re-sent on reconnect) → board server.
+  - Then `main.py` writes `preview 1|0` to the vision worker's **stdin**, and the worker's preview thread prints `{"preview": b64}` lines on stdout alongside the AI `Signals` lines.
+  - `main.py` forwards those lines to subscribed clients as `frame` messages.
+  - On the laptop, main sends `camera:frame` to the main window only while it's visible and not minimized.
+  - The renderer also turns preview off when `document.hidden`.
+- **Fusion:** `fuse(camera, window, keywords, attention)`. `present` + a distracting window → distracted (tagged with the keyword). Otherwise `present` + `attention === 'away'` → distracted, tagged `"Looking away"`.
 - **Bridge strings, Linux → MCU** (the `ui` RPC):
   - `U|face|hint|ip`
   - `S|status|current|elapsed|focus|t0..t5|w,e,b,y`
@@ -34,9 +46,11 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 | `app/src/shared/` | Pure logic + types: `types.ts`, `protocol.ts`, `colors.ts`, `fusion.ts`, `reminders.ts` (ReminderEngine), `stats.ts`, `defaults.ts`, `demo.ts`, `format.ts`, plus `*.test.ts` |
 | `app/src/main/` | `index.ts` (tray, hotkey, IPC, window behavior), `session.ts` (SessionManager), `deviceLink.ts` (WS client, auto-reconnect), `windowWatcher.ts` (PowerShell user32 on Windows, osascript on macOS for dev), `db.ts` (JSON file store, atomic writes; no SQLite, deliberately), `settings.ts`, `windows.ts` (main window, reminder popup, edge bar) |
 | `app/src/preload/` | `window.api` contextBridge |
-| `app/src/renderer/` | Pages: Home, SessionLive, Report, History, Settings, Popup, EdgeBar. Components: Timeline, Donut, Countdown, ui |
-| `board/python/` | `main.py` (BoardApp), `camera.py`, `vision.py` (MediaPipe), `classifier.py` (pure rules + 6 s majority vote), `server.py`, `display.py` (Bridge), `protocol.py`, `config.py` (all thresholds), `tests/` |
-| `board/sketch/sketch.ino` | MCU sketch: **no third-party libs**. Raw ILI9486 driver, built-in 5×7 font, raw XPT2046 touch. **Portrait 320×480**. |
+| `app/src/renderer/` | Pages: Home, SessionLive, Report, History, Settings, Popup, EdgeBar. Components: Timeline, Donut, Countdown, CameraPreview, ui. `lib/hooks.ts`: `useStatus`, `useSettings`, `useDarkMode`, `useChartColors`, `useCameraFrame` |
+| `board/python/` | `main.py` (BoardApp; spawns the worker, forwards preview frames), `vision_worker.py` (separate Python 3.12 process: camera + models, JSON lines on stdout, `preview 1/0` on stdin), `camera.py` (latest-frame capture + `encode_preview`), `vision.py` (MediaPipe), `classifier.py` (pure rules + 6 s majority vote), `server.py`, `display.py` (Bridge), `protocol.py`, `config.py` (all thresholds), `setup_vision.py` (builds the 3.12 env in App Lab), `tests/` |
+| `board/python/main_full.py` | **Legacy** in-process version of `main.py`. Not maintained: no preview, attention or hand gestures. |
+| `board/python/download_models.sh` | Fetches the 4 models into `models/` (git-ignored, so they must be downloaded or copied onto the board) |
+| `board/sketch/sketch.ino` | MCU sketch: **no third-party libs**. Raw ILI9486 driver, built-in 5×7 font, raw XPT2046 touch. **Portrait 320×480**. The session screen shows **4 activity rows** (Studying, Phone, Distracted, Away; `SE_ROWS`). Eating and sleeping still arrive in `S|` totals and can appear in the status chip. |
 | `board/tft_test/tft_test.ino` | Library-free screen bring-up test. `MODE_RPI16 1` is **confirmed working** on our panel. |
 | `board/WIRING.md` | **Full hardware guide**: parts, wiring table, bring-up order, settings, troubleshooting |
 | `tools/mock_board.py` | Fake board speaking the same WS protocol (`--fast`, `--webcam`; stdin commands) |
@@ -45,14 +59,20 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 ```sh
 # laptop app (use Node 20/22 LTS — newer Node can break Electron's binary install)
 cd app && npm install && npm run dev
-npm run typecheck && npm test          # Vitest: 16 tests
+npm run typecheck && npm test          # Vitest: 17 tests
 npm run dist:win                       # NSIS installer (build on Windows)
 
 # fake board for dev without hardware; then app Settings → Device = 127.0.0.1:8765
 pip install websockets && python tools/mock_board.py --fast
+#   preview needs `pip install opencv-python` (scripted mode streams a test card; --webcam streams the real camera)
+#   stdin commands: s p a e z = force state, l = looking away, auto, start/pause/resume/stop/done/dismiss
 
-# board python tests
-python -m pytest board/python/tests    # 6 tests
+# board python tests (the local, git-ignored .venv has pytest + websockets: .venv/bin/python -m pytest ...)
+python -m pytest board/python/tests    # 14 tests
+
+# on the UNO Q (App Lab terminal or SSH), inside the app's python/ folder
+./download_models.sh                   # face, pose, object, hand models → models/
+python main.py --debug                 # prints raw/state/attention, hands, eyes vs threshold, pitch/yaw, gaze, objects
 ```
 Gotchas:
 - npm 11 blocks install scripts. `allowScripts` in `app/package.json` approves electron and esbuild.
@@ -151,11 +171,33 @@ npm.cmd run dev
    - Running `board/` as an Arduino App Lab app.
    - MediaPipe installing and running fast enough on the UNO Q (aarch64). Fallback: `tflite-runtime`.
 4. **Windows-only behavior not yet tested on Windows:** the PowerShell window watcher, tray, taskbar minimize, and the global hotkey `Ctrl+Shift+S`. Development so far has been on macOS with the mock board, and everything works end to end there.
-5. **The sketch is host-compiled only:** checked with stub headers plus a framebuffer emulator that renders screens to PNG. It has not been compiled with the UNO Q (Zephyr) core yet.
+5. **The sketch is host-compiled only:** checked with stub headers plus a framebuffer emulator that renders screens to PNG. It has not been compiled with the UNO Q (Zephyr) core yet. The 4-row session layout hasn't been checked on the panel either.
+6. **Camera preview is not verified on hardware.**
+   - Unknowns: the CPU cost of 12 fps JPEG encoding next to inference on the A53 cores (lower `PREVIEW_FPS` if the AI rate drops), and frame delivery through App Lab's exposed port 8765.
+   - It was tested with the mock board and with a stub-model run of `vision_worker.py` (~12 fps, starts before the models finish loading).
+   - If the preview stays on "Starting the camera feed…", the usual cause is that the board is still running old Python files (the console never logs `camera preview on`), or the laptop app wasn't fully restarted after preload/main changes.
+7. **Recognition v2 (gaze/attention, per-person calibration, hand gestures) is unit-tested only.**
+   - Thresholds in `config.py` need tuning on the real camera with `--debug`. Start with `GAZE_DOWN_THRESHOLD`, `HAND_ZONE_BELOW` (depends on camera height), `HANDS_TOGETHER` and `LOOK_AWAY_YAW_DEG`.
+   - Check that inference still reaches ~3 fps with the hand model.
+8. **Dark mode** has been typechecked but not reviewed visually, especially Popup, EdgeBar and Report.
 
 ## Conventions
 - Activity colors are fixed: studying green, phone red, distracted amber, away gray, eating blue, sleeping purple. They're defined in `app/src/shared/colors.ts`, with RGB565 mirrors in `sketch.ino`.
 - UI style is calm and minimal, with an accent teal `#0f9d8a`, top tabs (Home / History / Settings) and a device status dot. Every setting has a one-line description.
+- **Theme tokens:**
+  - The palette lives as RGB-triplet CSS variables in `src/renderer/src/index.css`: light values on `:root`, and a dark override under `@media (prefers-color-scheme: dark)`. `tailwind.config.js` maps `ink`, `paper` and `accent` to them.
+  - Use `bg-paper` / `bg-paper-card` / `text-ink*` / `border-paper-line`. **Never** use `bg-white` or raw hex for surfaces or text.
+  - One-off status colors (emerald/amber/red) need a `dark:` variant.
+  - Recharts colors must come from `useChartColors()`, because SVG attributes can't read CSS variables.
+  - The dark accent is slightly brighter (`rgb(20 176 155)`). `#0f9d8a` remains the brand/light color.
+- **Theme switching:**
+  - `settings.theme` → `nativeTheme.themeSource` in main (`applyTheme`). That drives `prefers-color-scheme` in every window, plus the native title bar. Tailwind uses `darkMode: 'media'`.
+  - Window background colors follow `nativeTheme.shouldUseDarkColors`.
+- **Privacy:** camera video goes to the laptop only while a preview is visible (`settings.cameraPreview` on, the main window shown). It is never written to disk or the DB. Keep the Home privacy note accurate if this changes.
+- **Recognition rules:**
+  - Anything per-person (posture ratio, head pitch/yaw, eyes-open level) is calibrated in `ActivityClassifier.capture_baseline()` during the 3-2-1 countdown.
+  - The hand model is optional: `vision.py` logs a warning and skips hands if `models/hand_landmarker.task` is missing.
+  - Face runs every frame. Hands / pose / hands / objects share a 4-frame rotation, and results carry over between runs.
 - **Window behavior during a session** is user-selectable, default **minimize to taskbar**. The other options are hide to tray and close completely.
 - **Session flow:** Start runs a 3-2-1 countdown that captures the posture baseline. Stop goes straight to the Report.
 - Keep shared logic pure and unit-tested (`app/src/shared`, `board/python/classifier.py`). Run typecheck and tests before committing.
