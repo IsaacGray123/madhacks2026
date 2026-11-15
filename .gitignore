@@ -1,0 +1,11 @@
+node_modules/
+out/
+dist/
+*.log
+__pycache__/
+.pytest_cache/
+.venv/
+board/python/models/*.task
+board/python/models/*.tflite
+.DS_Store
+*.tsbuildinfo
