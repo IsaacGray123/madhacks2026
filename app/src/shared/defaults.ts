@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
     'Disney+'
   ],
   deviceAddress: 'unoq.local:8765',
+  boardSsh: { enabled: false, host: '', port: 22, username: 'arduino', remotePort: 8765 },
   theme: 'system',
   cameraPreview: true
 }
@@ -38,6 +39,7 @@ export function withDefaults(partial: Partial<Settings> | undefined): Settings {
     intervals: { ...DEFAULT_SETTINGS.intervals, ...(p.intervals ?? {}) },
     pomodoro: { ...DEFAULT_SETTINGS.pomodoro, ...(p.pomodoro ?? {}) },
     edgeBar: { ...DEFAULT_SETTINGS.edgeBar, ...(p.edgeBar ?? {}) },
+    boardSsh: { ...DEFAULT_SETTINGS.boardSsh, ...(p.boardSsh ?? {}) },
     distractionKeywords: p.distractionKeywords ?? DEFAULT_SETTINGS.distractionKeywords
   }
 }

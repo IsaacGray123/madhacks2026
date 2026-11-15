@@ -14,12 +14,14 @@
     "dist:win": "electron-vite build && electron-builder --win nsis"
   },
   "dependencies": {
+    "ssh2": "1.17.0",
     "ws": "8.18.0"
   },
   "devDependencies": {
     "@types/node": "20.16.11",
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.1",
+    "@types/ssh2": "1.15.6",
     "@types/ws": "8.5.12",
     "@vitejs/plugin-react": "4.3.2",
     "autoprefixer": "10.4.20",
@@ -36,6 +38,7 @@
     "vitest": "2.1.3"
   },
   "build": {
+    "npmRebuild": false,
     "appId": "com.madhacks.studylens",
     "productName": "StudyLens",
     "directories": {

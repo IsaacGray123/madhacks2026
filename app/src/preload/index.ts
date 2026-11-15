@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { Activity, LiveStatus, ReminderPayload, ReminderType, SessionDetail, Settings } from '@shared/types'
+import type { Activity, BoardConnectionStatus, BoardSshSettings, LiveStatus, ReminderPayload, ReminderType, SessionDetail, Settings } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (v: T) => void): () => void {
   const h = (_e: IpcRendererEvent, v: T): void => cb(v)
@@ -24,6 +24,10 @@ const api = {
   deleteAllData: (): Promise<void> => ipcRenderer.invoke('data:deleteAll'),
   loadDemoData: (): Promise<void> => ipcRenderer.invoke('data:loadDemo'),
   testConnection: (address: string): Promise<boolean> => ipcRenderer.invoke('device:test', address),
+  getBoardConnectionStatus: (): Promise<BoardConnectionStatus> => ipcRenderer.invoke('device:connection-status'),
+  testManagedConnection: (): Promise<boolean> => ipcRenderer.invoke('device:test-managed'),
+  forgetBoardLogin: (): Promise<void> => ipcRenderer.invoke('device:forget-login'),
+  saveBoardLogin: (config: BoardSshSettings, password: string): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('device:save-login', config, password),
   setCameraPreview: (on: boolean): Promise<void> => ipcRenderer.invoke('camera:preview', on),
   onCameraFrame: (cb: (jpegBase64: string) => void) => subscribe('camera:frame', cb),
   onNavigate: (cb: (r: { page: string; id?: number }) => void) => subscribe('navigate', cb),

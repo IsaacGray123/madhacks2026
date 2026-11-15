@@ -60,6 +60,19 @@ export type WindowBehavior = 'minimize' | 'tray' | 'close'
 export type NotificationMode = 'custom' | 'pomodoro'
 export type ThemePreference = 'system' | 'light' | 'dark'
 
+export interface BoardSshSettings {
+  enabled: boolean
+  host: string
+  port: number
+  username: string
+  remotePort: number
+}
+
+export interface BoardConnectionStatus {
+  connected: boolean
+  message: string
+}
+
 export interface Settings {
   notificationsEnabled: boolean
   notificationMode: NotificationMode
@@ -71,6 +84,7 @@ export interface Settings {
   edgeBar: { enabled: boolean; position: 'top' | 'bottom'; opacity: number }
   distractionKeywords: string[]
   deviceAddress: string
+  boardSsh: BoardSshSettings
   /** Light/dark appearance. 'system' follows the OS setting. */
   theme: ThemePreference
   /** Show the live UNO Q camera feed on Home and during a session. */

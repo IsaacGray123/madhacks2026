@@ -1,8 +1,9 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, Tray } from 'electron'
 import { generateDemoSessions } from '@shared/demo'
-import type { Activity, ReminderType, Settings } from '@shared/types'
+import type { Activity, BoardSshSettings, ReminderType, Settings } from '@shared/types'
 import * as db from './db'
 import { DeviceLink, testConnection } from './deviceLink'
+import { BoardConnection, forgetBoardLogin, saveBoardLogin } from './boardConnection'
 import { SessionManager } from './session'
 import { getSettings, saveSettings } from './settings'
 import { WindowWatcher } from './windowWatcher'
@@ -16,6 +17,8 @@ let tray: Tray | null = null
 let quitting = false
 
 const device = new DeviceLink()
+const connection = new BoardConnection(device)
+let savingBoardLogin = false
 const watcher = new WindowWatcher()
 let session: SessionManager
 
@@ -163,7 +166,7 @@ function registerIpc(): void {
     const s = saveSettings(patch)
     applyTheme(s)
     session.updateSettings(s)
-    device.connect(s.deviceAddress)
+    connection.configure(s)
     registerHotkey(s.hotkey)
     syncEdgeBar(s, session.isActive)
     return s
@@ -181,6 +184,29 @@ function registerIpc(): void {
   ipcMain.handle('data:deleteAll', () => db.deleteAll())
   ipcMain.handle('data:loadDemo', () => db.importDetails(generateDemoSessions(Date.now(), 14, Math.floor(Math.random() * 1e6))))
   ipcMain.handle('device:test', (_e, address: string) => testConnection(address))
+  ipcMain.handle('device:connection-status', () => connection.status())
+  ipcMain.handle('device:test-managed', () => connection.test())
+  ipcMain.handle('device:forget-login', () => {
+    if (savingBoardLogin) throw new Error('Wait for the current login check to finish.')
+    forgetBoardLogin()
+    const current = getSettings()
+    const settings = saveSettings({ boardSsh: { ...current.boardSsh, enabled: false } })
+    connection.configure(settings)
+  })
+  ipcMain.handle('device:save-login', async (_e, config: BoardSshSettings, password: string) => {
+    if (savingBoardLogin) return { ok: false, message: 'A board login is already being checked.' }
+    savingBoardLogin = true
+    try {
+      await saveBoardLogin(config, password)
+      const settings = saveSettings({ boardSsh: { ...config, enabled: true } })
+      connection.configure(settings, true)
+      return { ok: true, message: 'Login saved. Connecting in the background…' }
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : 'Could not save the board login.' }
+    } finally {
+      savingBoardLogin = false
+    }
+  })
   ipcMain.handle('camera:preview', (_e, on: boolean) => device.setPreview(on))
   ipcMain.handle('reminder:action', (_e, type: ReminderType, action: 'done' | 'dismiss') => {
     session.reminderAction(type, action)
@@ -200,7 +226,7 @@ app.whenReady().then(() => {
   wireSession()
   wirePreview()
   registerIpc()
-  device.connect(settings.deviceAddress)
+  connection.configure(settings)
   registerHotkey(settings.hotkey)
   mainWindow = createMainWindowWithGuards()
 })
@@ -214,6 +240,6 @@ app.on('before-quit', () => {
   session?.stop()
   db.flush()
   globalShortcut.unregisterAll()
-  device.close()
+  connection.close()
   watcher.stop()
 })

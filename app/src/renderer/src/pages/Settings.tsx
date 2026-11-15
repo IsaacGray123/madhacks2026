@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { DEFAULT_SETTINGS } from '@shared/defaults'
-import type { Settings, ThemePreference, WindowBehavior } from '@shared/types'
+import type { BoardConnectionStatus, BoardSshSettings, Settings, ThemePreference, WindowBehavior } from '@shared/types'
 import { useSettings } from '../lib/hooks'
 import { Segmented } from './Home'
 
@@ -116,7 +116,12 @@ export default function SettingsPage(): JSX.Element {
       </Group>
 
       <Group title="Device">
-        <DeviceRow address={s.deviceAddress} onSave={(v) => void save({ deviceAddress: v })} />
+        <Row label="Connection" desc="Background SSH connects to the Arduino automatically when StudyLens opens. Both devices need a reachable local network.">
+          <Segmented value={s.boardSsh.enabled ? 'ssh' : 'direct'} onChange={(v) => void save({ boardSsh: { ...s.boardSsh, enabled: v === 'ssh' } })} options={[[ 'direct', 'Direct' ], [ 'ssh', 'Background SSH' ]]} />
+        </Row>
+        {s.boardSsh.enabled
+          ? <BoardLogin config={s.boardSsh} onSaved={() => void save({})} />
+          : <DeviceRow address={s.deviceAddress} onSave={(v) => void save({ deviceAddress: v })} />}
         <Row label="Camera preview" desc="Shows the live UNO Q camera feed on Home and during a session. Video streams only while it's on screen and is never saved.">
           <Toggle checked={s.cameraPreview} onChange={(v) => void save({ cameraPreview: v })} />
         </Row>
@@ -140,6 +145,80 @@ export default function SettingsPage(): JSX.Element {
         </Row>
       </Group>
     </div>
+  )
+}
+
+function BoardLogin({ config, onSaved }: { config: BoardSshSettings; onSaved: () => void }): JSX.Element {
+  const [host, setHost] = useState(config.host)
+  const [username, setUsername] = useState(config.username)
+  const [port, setPort] = useState(String(config.port))
+  const [remotePort, setRemotePort] = useState(String(config.remotePort))
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [status, setStatus] = useState<BoardConnectionStatus | null>(null)
+  useEffect(() => {
+    setHost(config.host)
+    setUsername(config.username)
+    setPort(String(config.port))
+    setRemotePort(String(config.remotePort))
+  }, [config.host, config.username, config.port, config.remotePort])
+  useEffect(() => {
+    let active = true
+    const refresh = (): void => {
+      void window.api.getBoardConnectionStatus().then((value) => { if (active) setStatus(value) }).catch(() => {})
+    }
+    refresh()
+    const timer = setInterval(refresh, 1000)
+    return () => { active = false; clearInterval(timer) }
+  }, [])
+  const saveLogin = async (): Promise<void> => {
+    setBusy(true)
+    setFeedback('Checking board login…')
+    try {
+      const result = await window.api.saveBoardLogin({
+        enabled: true, host: host.trim(), username: username.trim(), port: Number(port), remotePort: Number(remotePort),
+      }, password)
+      setFeedback(result.message)
+      if (result.ok) { setPassword(''); onSaved() }
+    } catch {
+      setFeedback('Could not save the board login. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Row label="Arduino login" desc="Enter the board Wi-Fi address and its Linux account password once. The password is encrypted on this computer. Future launches reconnect automatically. Leave the password blank to reuse a saved login for the same board.">
+      <div className="flex w-72 flex-col gap-3">
+        <label className="text-xs text-ink-soft">Board IP or hostname
+          <input className="input mt-1 w-full" value={host} onChange={(e) => setHost(e.target.value)} placeholder="172.20.10.4" disabled={busy} />
+        </label>
+        <label className="text-xs text-ink-soft">Linux username
+          <input className="input mt-1 w-full" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" disabled={busy} />
+        </label>
+        <label className="text-xs text-ink-soft">Linux password
+          <input className="input mt-1 w-full" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="off" disabled={busy} />
+        </label>
+        <details className="text-xs text-ink-soft">
+          <summary className="cursor-pointer">Ports</summary>
+          <div className="mt-2 flex gap-3">
+            <label>SSH<input className="input mt-1 w-full" value={port} onChange={(e) => setPort(e.target.value)} inputMode="numeric" disabled={busy} /></label>
+            <label>Board app<input className="input mt-1 w-full" value={remotePort} onChange={(e) => setRemotePort(e.target.value)} inputMode="numeric" disabled={busy} /></label>
+          </div>
+        </details>
+        <div className="flex gap-2">
+          <button className="btn-primary" disabled={busy} onClick={() => void saveLogin()}>{busy ? 'Connecting…' : 'Save and connect'}</button>
+          <button className="btn-outline" disabled={busy} onClick={() => {
+            void window.api.testManagedConnection().then((ok) => setFeedback(ok ? 'Board app is reachable.' : 'Board app is unavailable. Check the connection status below.')).catch(() => setFeedback('Connection test failed.'))
+          }}>Test</button>
+        </div>
+        <button className="self-start text-xs text-ink-soft underline" disabled={busy} onClick={() => {
+          void window.api.forgetBoardLogin().then(() => { setPassword(''); onSaved() }).catch(() => setFeedback('Could not remove the saved login.'))
+        }}>Forget saved login</button>
+        {feedback && <p role="status" className="text-xs text-ink-soft">{feedback}</p>}
+        {status && <p role="status" className={`text-xs ${status.connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink-soft'}`}>{status.message}</p>}
+      </div>
+    </Row>
   )
 }
 
