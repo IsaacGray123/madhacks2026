@@ -25,7 +25,7 @@ The screen was built to plug onto a Raspberry Pi 40-pin header. Run jumper wires
 The UNO Q headers use **3.3 V logic**, which matches the panel. The pin numbers live at the top of `sketch/sketch.ino` if you need to change them.
 
 ## Software on the board
-1. **MCU sketch.** Open `board/sketch/sketch.ino` in Arduino App Lab (or the IDE). Install two libraries: **GFX Library for Arduino** (Arduino_GFX) and **XPT2046_Touchscreen**. Then flash the sketch.
+1. **MCU sketch.** Open `board/sketch/sketch.ino` in Arduino App Lab (or the IDE) and flash it. It needs no extra libraries: the display driver (RPi 16-bit shift-register mode), font and touch reader are built in. If the screen ever stays blank, flash `board/tft_test/tft_test.ino` first to check the wiring.
 2. **Linux side** (SSH or the App Lab terminal):
    ```sh
    cd board/python
@@ -39,8 +39,8 @@ The UNO Q headers use **3.3 V logic**, which matches the panel. The pin numbers 
 ## Things to verify early (first 2 hours)
 - [ ] `pip install mediapipe` works on the board's Debian aarch64 image. If it doesn't, try `pip install mediapipe --no-deps` plus `numpy`, or switch the three detectors to `tflite-runtime` with the same `.tflite` models.
 - [ ] Frame rate: `--debug` prints about 3 lines per second. If it's slower, lower `TARGET_FPS` or `FRAME_WIDTH`/`FRAME_HEIGHT` in `config.py`.
-- [ ] The display shows the boot screen. If it stays white or shows garbage, the panel may be a 16-bit shift-register variant. Try `Arduino_ILI9486` (not `_18bit`) in the sketch, or lower the SPI clock.
-- [ ] Touch: set `TOUCH_DEBUG 1`, tap the corners, read the Serial monitor, and adjust `TS_MINX…TS_FLIP_Y`.
+- [ ] The display shows "StudyLens / Starting camera...". If it stays white, run `board/tft_test` (mode 1 is confirmed on our panel). Once it works, try `CS_PER_WORD 0` and a higher `SPI_HZ` at the top of the sketch for faster redraws.
+- [ ] Touch: set `TOUCH_DEBUG 1`, tap the corners, read the raw values printed at the bottom of the screen, and adjust `TS_MINX…TS_FLIP_Y`.
 - [ ] Bridge: confirm `Bridge.provide("ui", onUi)` with a `String` argument and `Bridge.notify("touch", …)` match your RouterBridge library version, and that `from arduino.app_utils import Bridge, App` works in Python. `display.py` falls back to logging if the import fails.
 - [ ] The venue Wi-Fi allows device-to-device traffic. If it doesn't, put the laptop and the board on a phone hotspot.
 
