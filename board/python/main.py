@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import atexit
 import asyncio
+from collections import deque
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 
 import config as C
 import protocol
@@ -50,12 +52,41 @@ class BoardApp:
         self.reminder_active: str | None = None
         self.server = BoardServer(args.port, self.on_laptop, self.on_preview)
         self.worker: subprocess.Popen | None = None
+        self.stopping = threading.Event()
+        atexit.register(self.stopping.set)
         self.display = Display(self.on_touch)
         self.ip = local_ip()
         self.lock = threading.Lock()
 
     # ---------- vision thread ----------
     def vision_thread(self):
+        from model_assets import ensure_models
+        from setup_vision import ensure_environment
+
+        delay = 2
+        while not self.stopping.is_set():
+            try:
+                if self.status == "idle":
+                    self.display.setup(False, "Preparing camera...", f"{self.ip}:{self.args.port}")
+                if HAVE_BRIDGE and not os.environ.get("STUDYLENS_VISION_PYTHON"):
+                    ensure_environment()
+                ensure_models()
+                self._vision_attempt()
+            except Exception:
+                log.exception("Camera stopped; automatically retrying in %s seconds", delay)
+                with self.lock:
+                    self.result = None
+                    fresh = ActivityClassifier()
+                    for key in ("baseline_ratio", "baseline_pitch", "baseline_yaw", "baseline_eyes"):
+                        setattr(fresh, key, getattr(self.classifier, key))
+                    self.classifier = fresh
+                if self.status == "idle":
+                    self.display.setup(False, "Camera recovering - retrying...", f"{self.ip}:{self.args.port}")
+            if self.stopping.wait(delay):
+                return
+            delay = min(30, delay * 2)
+
+    def _vision_attempt(self):
         python_dir = Path(__file__).resolve().parent
         default_python = python_dir.parent / ".cache/vision312/bin/python" if HAVE_BRIDGE else sys.executable
         vision_python = os.environ.get("STUDYLENS_VISION_PYTHON", str(default_python))
@@ -64,10 +95,32 @@ class BoardApp:
                 [vision_python, "-u", str(python_dir / "vision_worker.py"), "--camera", str(self.args.camera)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             ) as worker:
                 atexit.register(worker.terminate)
                 self.worker = worker
+                errors = deque(maxlen=8)
+                finished = threading.Event()
+                first_signal = threading.Event()
+                last_signal = time.monotonic()
+
+                def diagnostics():
+                    for line in worker.stderr:
+                        errors.append(line.strip())
+                        log.info("camera: %s", line.rstrip())
+
+                def watchdog():
+                    while not finished.wait(2):
+                        timeout = 15 if first_signal.is_set() else 90
+                        if time.monotonic() - last_signal > timeout:
+                            errors.append("Camera worker stopped responding; restarting it.")
+                            worker.kill()
+                            return
+
+                diagnostic_thread = threading.Thread(target=diagnostics, daemon=True)
+                diagnostic_thread.start()
+                threading.Thread(target=watchdog, daemon=True).start()
                 self.on_preview(self.server.preview_wanted)  # a laptop may have asked before the worker started
                 try:
                     for line in worker.stdout:
@@ -83,6 +136,8 @@ class BoardApp:
                                 )
                             continue
                         sig = Signals(**payload)
+                        last_signal = time.monotonic()
+                        first_signal.set()
                         res = self.classifier.update(sig)
                         with self.lock:
                             self.result = res
@@ -97,8 +152,11 @@ class BoardApp:
                                 bool(sig.phone), bool(sig.drink), bool(sig.food),
                                 None if res.slouch is None else round(res.slouch, 2),
                             )
-                    raise RuntimeError(f"Vision worker exited with code {worker.wait()}")
+                    code = worker.wait()
+                    diagnostic_thread.join(timeout=1)
+                    raise RuntimeError(f"Vision worker exited with code {code}: {' '.join(errors)[-800:]}")
                 finally:
+                    finished.set()
                     self.worker = None
                     worker.terminate()
                     try:
@@ -107,11 +165,8 @@ class BoardApp:
                         worker.kill()
                         worker.wait()
                     atexit.unregister(worker.terminate)
-        except Exception:
-            log.exception("Camera inference stopped. On UNO Q, run python/setup_vision.py in the app container.")
-            with self.lock:
-                self.result = None
-            self.display.setup(False, "Camera unavailable - see App Lab console", f"{self.ip}:{self.args.port}")
+        except FileNotFoundError as error:
+            raise RuntimeError("Camera environment is missing; startup provisioning will retry.") from error
 
     def on_preview(self, on: bool):
         """Tell the vision worker to start/stop encoding preview frames (saves CPU when nobody is watching)."""
@@ -190,7 +245,7 @@ class BoardApp:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=protocol.DEFAULT_PORT)
-    ap.add_argument("--camera", type=int, default=C.CAMERA_INDEX)
+    ap.add_argument("--camera", default=C.CAMERA_INDEX)
     ap.add_argument("--debug", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import base64
+import logging
+from pathlib import Path
 import threading
 import time
 
@@ -10,35 +12,71 @@ import cv2
 import config as C
 
 
+def camera_sources(index):
+    if str(index) != "auto":
+        return [int(index) if str(index).isdigit() else index]
+    stable = sorted(Path("/dev/v4l/by-id").glob("*"))
+    devices = sorted(Path("/dev").glob("video[0-9]*"), key=lambda path: int(path.name[5:]))
+    sources, seen = [], set()
+    for path in stable + devices:
+        resolved = str(path.resolve())
+        if resolved not in seen:
+            sources.append(str(path))
+            seen.add(resolved)
+    return sources or list(range(4))
+
+
 class Camera:
-    def __init__(self, index: int = C.CAMERA_INDEX):
-        self.cap = cv2.VideoCapture(index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, C.FRAME_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, C.FRAME_HEIGHT)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        if not self.cap.isOpened():
-            raise RuntimeError(f"Could not open camera {index}. Is the USB webcam plugged into the hub? Try --camera 1")
-        self.frame = None
+    def __init__(self, index=C.CAMERA_INDEX):
+        self.cap = None
+        for source in camera_sources(index):
+            candidate = cv2.VideoCapture(source)
+            try:
+                if not candidate.isOpened():
+                    continue
+                candidate.set(cv2.CAP_PROP_FRAME_WIDTH, C.FRAME_WIDTH)
+                candidate.set(cv2.CAP_PROP_FRAME_HEIGHT, C.FRAME_HEIGHT)
+                ok, frame = candidate.read()
+                if not ok or frame is None:
+                    continue
+                self.cap, self.frame, self.source = candidate, frame, source
+                logging.info("Using camera %s", source)
+                break
+            finally:
+                if self.cap is not candidate:
+                    candidate.release()
+        if self.cap is None:
+            raise RuntimeError("No camera delivered frames. Check the powered USB hub; automatic retry will continue.")
         self.lock = threading.Lock()
-        self.running = True
-        threading.Thread(target=self._loop, daemon=True).start()
+        self.stop = threading.Event()
+        self.last_frame_at = time.monotonic()
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
 
     def _loop(self):
-        while self.running:
-            ok, frame = self.cap.read()
-            if ok:
-                with self.lock:
-                    self.frame = frame
-            else:
-                time.sleep(0.05)
+        try:
+            while not self.stop.is_set():
+                ok, frame = self.cap.read()
+                if ok and frame is not None:
+                    with self.lock:
+                        self.frame = frame
+                        self.last_frame_at = time.monotonic()
+                else:
+                    self.stop.wait(0.05)
+        finally:
+            self.cap.release()
 
     def read(self):
         with self.lock:
+            if time.monotonic() - self.last_frame_at > 5:
+                raise RuntimeError(f"Camera {self.source} stopped delivering frames; restarting capture.")
             return None if self.frame is None else self.frame.copy()
 
     def close(self):
-        self.running = False
-        self.cap.release()
+        self.stop.set()
+        self.thread.join(timeout=2)
+        if self.thread.is_alive():
+            logging.warning("Camera read is blocked; the supervisor will terminate the worker.")
 
 
 def encode_preview(frame) -> str | None:

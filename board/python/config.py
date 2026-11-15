@@ -1,7 +1,7 @@
 """Tunable thresholds. Run `python main.py --debug` and watch the printed signals to tune these."""
 
 # --- camera / performance ---
-CAMERA_INDEX = 0
+CAMERA_INDEX = "auto"  # discovers a camera that actually delivers frames; a number/path overrides it
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 TARGET_FPS = 3.0

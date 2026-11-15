@@ -26,19 +26,22 @@ def emit(output, obj) -> None:
         print(line, file=output, flush=True)
 
 
-def preview_thread(camera, output, encode_preview):
+def preview_thread(camera, output, encode_preview, stopped):
     """Streams the camera's latest frame at PREVIEW_FPS, independent of the slower AI loop."""
     period = 1.0 / C.PREVIEW_FPS
-    while True:
+    while not stopped.is_set():
         started = time.monotonic()
         if preview_on.is_set():
-            frame = camera.read()
+            try:
+                frame = camera.read()
+            except RuntimeError:
+                return  # the inference loop reports the capture failure to the supervisor
             jpeg = None if frame is None else encode_preview(frame)
             if jpeg:
                 emit(output, {"preview": jpeg})
-            time.sleep(max(0.0, period - (time.monotonic() - started)))
+            stopped.wait(max(0.0, period - (time.monotonic() - started)))
         else:
-            preview_on.wait(1.0)
+            stopped.wait(0.2)
 
 
 def control_thread():
@@ -51,7 +54,7 @@ def control_thread():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--camera", type=int, default=C.CAMERA_INDEX)
+    parser.add_argument("--camera", default=C.CAMERA_INDEX)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s vision: %(message)s")
     output = sys.stdout
@@ -63,8 +66,10 @@ def main():
         threading.Thread(target=control_thread, daemon=True).start()
         # Open the camera first so the laptop's preview works while the AI models are still loading.
         camera = Camera(args.camera)
+        stopped = threading.Event()
+        preview = threading.Thread(target=preview_thread, args=(camera, output, encode_preview, stopped), daemon=True)
         try:
-            threading.Thread(target=preview_thread, args=(camera, output, encode_preview), daemon=True).start()
+            preview.start()
             logging.info("Creating AI models")
             pipeline = VisionPipeline()
             try:
@@ -79,6 +84,8 @@ def main():
             finally:
                 pipeline.close()
         finally:
+            stopped.set()
+            preview.join(timeout=2)
             camera.close()
 
 
