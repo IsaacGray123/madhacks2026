@@ -85,7 +85,62 @@ Gotchas:
   - `SPI_HZ` and `CS_PER_WORD 0`: speed-ups.
   - `TS_*`: touch calibration.
 
-## Current status / open issues
+## Current handoff, 2026-11-15
+
+This section supersedes the older status notes below.
+
+- The UNO Q runs the sketch and Python app through App Lab. The screen has reached `Waiting for laptop`. The earlier suspected wiring cause for a blank screen was never confirmed.
+- Touch calibration uses `TS_MINX=4454`, `TS_MAXX=7880`, `TS_MINY=4370`, `TS_MAXY=7894`, `TS_SWAP_XY=0`, and both flips set to 1. The user supplied raw corner measurements. Debug output was disabled in a later commit. Confirm final finger/dot alignment and button actions on hardware.
+- App Lab's `python-apps-base:0.13.2` image uses Python 3.13. MediaPipe 1.2.3 installed but crashed when creating models with unsupported CPU instructions and exit code 132. Import-only checks passed before the crash.
+- Python 3.12 with MediaPipe 0.10.18 initialized all three models on the actual UNO Q and printed `AI models ready`. The tested dependencies include headless OpenCV contrib 4.11.0.86, JAX/JAXLIB 0.4.35, and NumPy 1.26.4.
+- `main.py` now keeps the Bridge, WebSocket server, classifier, and posture baseline in App Lab's Python 3.13 process. It launches `vision_worker.py` with `/app/.cache/vision312/bin/python` for camera inference. Signals cross stdout as JSON. `STUDYLENS_VISION_PYTHON` can override the interpreter. Local desktop use defaults to the current interpreter.
+- `setup_vision.py` installs the separate environment and its interpreter under the mounted app `.cache` directory, then checks model initialization. It uses `vision_requirements.txt` and installs MediaPipe with `--no-deps` to retain headless OpenCV. `requirements.txt` supplies the main app's dependencies. Copy both requirements files along with the Python files.
+- Desktop OpenCV failed with `libGL.so.1` missing. Installing `libgl1` failed because the base container had broken Debian dependencies. Replacing desktop OpenCV with headless OpenCV allowed imports to pass.
+- `main_full.py` preserves the original app implementation from before the subprocess integration. It is a backup. The full current startup file is `main.py` and contains `class BoardApp`. If startup still prints `Importing vision`, the board still has the temporary diagnostic copy.
+- The board app folder is `/home/arduino/ArduinoApps/hackathon-1`, mounted at `/app`, and its container is `hackathon-1-main-1`. Names vary with the app. Use `docker inspect` and `docker ps -a` to verify them. Updating GitHub alone did not update the App Lab copy in this session.
+
+After copying the current files into App Lab, press Run. Run this in the board terminal, wait for `Camera environment ready`, then Stop and Run again.
+
+```sh
+docker exec hackathon-1-main-1 python3 /app/python/setup_vision.py
+```
+
+### Laptop connection
+
+- `board/app.yaml` publishes port 8765 using a `ports` list. The board's App Lab copy also needs this entry. Docker mappings to `0.0.0.0:8765` and `[::]:8765` were verified.
+- The last board Wi-Fi address was `172.20.10.4`, and the laptop's was `172.20.10.3`. Check the current board address with `ip -4 addr show wlan0`. Addresses can change. `172.20.0.2` in the Python log is the Docker container address.
+- The laptop reached the board using ping and TCP 22. TCP 8765 timed out from the laptop, although the server was reachable inside the container and through the board's localhost published port. The cause of the incoming connection block is still undetermined.
+- An SSH tunnel was provided as the workaround. Run this on the Windows laptop, enter the Arduino Linux account password locally, and leave the terminal open.
+
+```powershell
+ssh -N -L 127.0.0.1:8766:127.0.0.1:8765 arduino@172.20.10.4
+```
+
+In the StudyLens laptop app, open Settings, scroll to Device, set UNO Q address to `127.0.0.1:8766`, and click Test. A direct connection uses the board's current Wi-Fi IP with port 8765. The user acknowledged the tunnel instructions. An explicit successful Test result has not been recorded.
+
+### Windows app startup and network setup
+
+- Use Node 20 or 22 LTS. PowerShell blocked `npm.ps1`, and `npm.cmd` worked. Node 26.13.1 was installed initially. Electron's executable was missing and startup failed with `Error: Electron uninstall`. Running `node node_modules/electron/install.js` using a temporary official Node 22.23.5 executable repaired the installation.
+- Clear `ELECTRON_RUN_AS_NODE` for launch. The StudyLens window opened successfully on Windows after the repair. Run the commands below from the repository's `app` folder.
+
+```powershell
+npm.cmd install
+Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+- UWNet intercepted model downloads with a certificate for `securelogin.local.uwnet.wisc.edu`. Network access was subsequently resolved and all three models downloaded. The observed board Wi-Fi MAC is `14:b5:cd:e4:1c:69`. UWNet device registration is at https://access.services.wisc.edu/Device. The later connection tests used the hotspot addresses above.
+- If `download_models.sh` fails with `set: Illegal option`, fix Windows line endings using `sed -i 's/\r$//' download_models.sh` and rerun it on the board.
+
+### Remaining verification
+
+- After the subprocess integration, the user reported `Waiting for laptop`, which the code displays after receiving a face detection. Sustained frame rate and classification accuracy still need measurement.
+- Verify the laptop connection Test result and a full session with start, pause/resume, stop, reminder completion/dismissal, and posture baseline capture. Bridge initialization and Python-to-sketch screen updates have worked.
+- Confirm Windows window watcher accuracy, tray behavior, and the global hotkey. The Windows app window has launched successfully.
+- Local Python syntax, six classifier checks, simulated JSON transfer and worker exit handling, and mocked setup commands passed. Actual camera/Bridge/session integration still needs the checks above.
+- The laptop app's typecheck and all 16 Vitest tests passed using Node 22 during this handoff update.
+
+## Earlier status notes
 1. **Screen went blank ~0.5 s after the boot text** with the previous sketch.
    - Leading hypothesis: header pins **22 (RST) and 26 (TP_CS) are swapped**, so touch polling pulls D7 low and resets the panel.
    - The user was asked to check this and to test with `TOUCH_ENABLED 0` / `USE_BRIDGE 0`.
