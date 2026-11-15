@@ -69,7 +69,7 @@ def test_sleeping_eyes_closed_but_not_when_reading():
     assert r.state == "sleeping"
 
     c = ActivityClassifier()
-    r, _ = feed(c, 25, eyes_closed=0.9, head_pitch=30, **FACE)   # looking down at notes
+    r, _ = feed(c, 8, eyes_closed=0.9, head_pitch=30, **FACE)    # glancing down at notes (< 10 s)
     assert r.state == "present"
 
 
@@ -119,8 +119,53 @@ def test_looking_up_past_the_screen_is_away():
 
 def test_looking_down_at_notes_is_not_away():
     c = ActivityClassifier()
-    r, _ = feed(c, 10, head_pitch=30, gaze_down=0.8, **FACE)
+    r, _ = feed(c, 8, head_pitch=30, gaze_down=0.8, **FACE)
     assert r.attention == "down" and r.state == "present"
+
+
+DOWN = dict(head_pitch=30, gaze_down=0.8, **FACE)
+
+
+def test_long_look_down_with_open_eyes_is_phone():
+    c = ActivityClassifier()
+    r, t = feed(c, 9, eyes_closed=0.2, **DOWN)
+    assert r.state == "present"                           # under 10 s: still studying
+    r, _ = feed(c, 4, start=t, eyes_closed=0.2, **DOWN)   # 13 s down (10 s + 1.5 s switch)
+    assert r.state == "phone"
+
+
+def test_long_look_down_with_closed_eyes_is_sleeping():
+    c = ActivityClassifier()
+    r, _ = feed(c, 13, eyes_closed=0.9, **DOWN)
+    assert r.state == "sleeping"
+
+
+def test_long_look_down_with_unclear_eyes_is_distracted():
+    c = ActivityClassifier()
+    r, _ = feed(c, 13, eyes_closed=0.6, **DOWN)
+    assert r.state == "distracted"
+
+
+def test_brief_glance_up_does_not_restart_the_look_down_timer():
+    c = ActivityClassifier()
+    _, t = feed(c, 7, eyes_closed=0.2, **DOWN)
+    _, t = feed(c, 0.67, start=t, eyes_closed=0.2, **FACE)   # quick look up
+    r, _ = feed(c, 5, start=t, eyes_closed=0.2, **DOWN)
+    assert r.state == "phone"
+
+
+def test_long_look_down_with_hands_on_keyboard_stays_studying():
+    c = ActivityClassifier()
+    r, _ = feed(c, 15, eyes_closed=0.2, hands=TYPING, **DOWN)
+    assert r.state == "present"
+
+
+def test_long_look_down_can_be_turned_off(monkeypatch):
+    import config
+    monkeypatch.setattr(config, "LONG_LOOK_DOWN_S", 0)
+    c = ActivityClassifier()
+    r, _ = feed(c, 15, eyes_closed=0.2, **DOWN)
+    assert r.state == "present"
 
 
 def test_head_turned_so_far_the_face_is_lost_is_away():

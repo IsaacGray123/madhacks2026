@@ -3,8 +3,11 @@
 export const ACTIVITIES = ['studying', 'phone', 'distracted', 'away', 'eating', 'sleeping'] as const
 export type Activity = (typeof ACTIVITIES)[number]
 
-/** What the UNO Q camera can tell on its own. The laptop refines `present` into studying/distracted. */
-export type CameraState = 'present' | 'phone' | 'away' | 'eating' | 'sleeping'
+/**
+ * What the UNO Q camera can tell on its own. The laptop refines `present` into studying/distracted.
+ * `distracted` = looked down for a long time but the eyes were neither clearly open (phone) nor closed (sleeping).
+ */
+export type CameraState = 'present' | 'phone' | 'away' | 'eating' | 'sleeping' | 'distracted'
 
 /** Where the camera sees the user looking. `away` is only reported after it has lasted a few seconds. */
 export type Attention = 'screen' | 'down' | 'away'

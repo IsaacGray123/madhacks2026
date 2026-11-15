@@ -4,7 +4,7 @@ Mirror of app/src/shared/protocol.ts — keep the two in sync.
 
 board -> laptop:
   {"type":"hello","device":"unoq","version":1}
-  {"type":"vision","ts":<ms>,"state":"present|phone|away|eating|sleeping","conf":0..1,"face":bool,"slouch":0..1|null,"attention":"screen|down|away"|null}
+  {"type":"vision","ts":<ms>,"state":"present|phone|away|eating|sleeping|distracted","conf":0..1,"face":bool,"slouch":0..1|null,"attention":"screen|down|away"|null}
   {"type":"event","ts":<ms>,"event":"drank|ate"}
   {"type":"touch","action":"start|pause|resume|stop|reminder_done|reminder_dismiss","reminder"?:str}
   {"type":"frame","ts":<ms>,"jpeg":<base64 JPEG>}   (only to clients that sent preview on)
@@ -23,7 +23,7 @@ import time
 
 PROTOCOL_VERSION = 1
 DEFAULT_PORT = 8765
-CAMERA_STATES = ("present", "phone", "away", "eating", "sleeping")
+CAMERA_STATES = ("present", "phone", "away", "eating", "sleeping", "distracted")
 ACTIVITIES = ("studying", "phone", "distracted", "away", "eating", "sleeping")
 TIMER_KEYS = ("water", "eat", "break", "eye")
 

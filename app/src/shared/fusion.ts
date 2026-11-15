@@ -2,6 +2,8 @@ import type { Activity, Attention, CameraState, WindowInfo } from './types'
 
 /** Distraction tag used when the camera sees the user looking away from the screen. */
 export const LOOKING_AWAY_TAG = 'Looking away'
+/** Distraction tag when the camera saw a long look down it couldn't classify as phone or sleep. */
+export const LOOKING_DOWN_TAG = 'Looking down'
 
 export interface FusionResult {
   activity: Activity
@@ -21,8 +23,9 @@ export function matchDistraction(win: WindowInfo | null, keywords: string[]): st
  * A distracting window wins over looking away, since it names the distraction.
  */
 export function fuse(camera: CameraState, win: WindowInfo | null, keywords: string[], attention?: Attention | null): FusionResult {
+  if (camera === 'distracted') return { activity: 'distracted', tag: LOOKING_DOWN_TAG }
   if (camera !== 'present') {
-    const map: Record<Exclude<CameraState, 'present'>, Activity> = {
+    const map: Record<Exclude<CameraState, 'present' | 'distracted'>, Activity> = {
       phone: 'phone',
       away: 'away',
       eating: 'eating',

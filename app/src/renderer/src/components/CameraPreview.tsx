@@ -6,7 +6,8 @@ const STATE_LABEL: Record<CameraState, string> = {
   phone: 'Phone',
   away: 'Away',
   eating: 'Eating / drinking',
-  sleeping: 'Sleeping'
+  sleeping: 'Sleeping',
+  distracted: 'Looking down'
 }
 
 /** A frame older than this counts as a stalled feed. */

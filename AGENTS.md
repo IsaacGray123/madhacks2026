@@ -198,6 +198,12 @@ npm.cmd run dev
   - Anything per-person (posture ratio, head pitch/yaw, eyes-open level) is calibrated in `ActivityClassifier.capture_baseline()` during the 5-second countdown.
   - The hand model is optional: `vision.py` logs a warning and skips hands if `models/hand_landmarker.task` is missing.
   - Face runs every frame. Hands / pose / hands / objects share a 4-frame rotation, and results carry over between runs.
+  - **Long look down** (`LONG_LOOK_DOWN_S` = 10 s of attention `down`, with brief glances up under `LOOK_DOWN_GRACE_S` ignored) is decided by eye openness:
+    - eyeBlink ≤ `DOWN_EYES_OPEN_MAX` → `phone`, unless the hands are visible and resting low (typing or writing), which stays studying
+    - ≥ `DOWN_EYES_CLOSED_MIN` → `sleeping`
+    - in between → camera state `distracted`, which fuses to activity distracted with the tag `"Looking down"`
+    - `LONG_LOOK_DOWN_S = 0` turns the rule off.
+  - `distracted` is a camera state (`CameraState` in `types.ts`, `CAMERA_STATES` in `protocol.py`) in addition to the laptop's window-based distraction.
   - **Latency budget:** ~1.5 s switch delay on the board (plus any rule's own hold time, e.g. `PHONE_POSE_S`, `AWAY_AFTER_S`), then ≤0.5 s board publish and ≤0.5 s laptop `TICK_MS` in `session.ts`. Sleep timers stay long on purpose.
 - **Window behavior during a session** is user-selectable, default **minimize to taskbar**. The other options are hide to tray and close completely.
 - **Session flow:** Start runs a 5-second countdown that tells the user to look at the screen they'll study from. The baseline (eye/head direction = "where the screen is", eyes-open level, posture) is captured when the countdown **ends**, not on click. Stop goes straight to the Report.

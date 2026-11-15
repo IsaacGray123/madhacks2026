@@ -37,6 +37,17 @@ GAZE_UP_THRESHOLD = 0.4        # eyeLookUp blendshape: eyes looking up, past the
 LOOK_AWAY_S = 3.0              # looking away this long -> attention "away" (laptop counts it as distracted)
 LOOK_BACK_S = 1.0              # must look back at the screen this long to end "away" (a quick glance doesn't)
 
+# --- long look down (head/eyes down at the desk or lap) ---
+# Looking down this long is treated as probably phone or sleeping, decided by how open the eyes are.
+# Eyes open with hands visible on the desk/keyboard (typing, writing) stays studying. Reading paper notes
+# with hands out of view can still read as phone. Set LONG_LOOK_DOWN_S = 0 to turn the rule off.
+LONG_LOOK_DOWN_S = 10.0
+LOOK_DOWN_GRACE_S = 1.0        # glancing up for less than this doesn't restart the 10 s
+# Eyelids read more closed when looking down, so these are separate from the eyes-closed threshold above.
+DOWN_EYES_OPEN_MAX = 0.45      # eyeBlink at or below this while looking down = eyes open -> phone
+DOWN_EYES_CLOSED_MIN = 0.75    # eyeBlink at or above this while looking down = eyes closed -> sleeping
+                               # in between = can't tell -> distracted
+
 # --- hands (MediaPipe HandLandmarker) ---
 HAND_ZONE_ABOVE = 0.05         # "raised" hands: wrist no higher than this above the mouth...
 HAND_ZONE_BELOW = 0.40         # ...and no lower than this below it (hands on the desk/keyboard are lower)

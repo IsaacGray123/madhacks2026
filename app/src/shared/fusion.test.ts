@@ -22,6 +22,9 @@ describe('fuse', () => {
     expect(fuse('present', null, kw, 'down').activity).toBe('studying')
     expect(fuse('phone', null, kw, 'away').activity).toBe('phone')
   })
+  it('maps an unclear long look down to a distraction', () => {
+    expect(fuse('distracted', { app: 'Code', title: 'notes.md' }, kw)).toEqual({ activity: 'distracted', tag: 'Looking down' })
+  })
   it('treats missing window info as studying', () => {
     expect(fuse('present', null, kw).activity).toBe('studying')
   })

@@ -108,6 +108,8 @@ class ActivityClassifier:
         self.face_hidden_since: float | None = None
         self.look_away_since: float | None = None
         self.look_back_since: float | None = None
+        self.down_since: float | None = None
+        self.down_lost_since: float | None = None
         self.looking_away = False
         self.candidate: str | None = None
         self.candidate_since = 0.0
@@ -183,6 +185,36 @@ class ActivityClassifier:
         down = (s.head_pitch - self.baseline_pitch) > C.LOOKING_DOWN_DEG or s.gaze_down > C.GAZE_DOWN_THRESHOLD
         return "down" if down else "screen"
 
+    # ---- long look down ----
+    def long_look_down(self, s: Signals, attention: str | None) -> str | None:
+        """Looking down for LONG_LOOK_DOWN_S: probably phone (eyes open) or sleeping (eyes closed).
+
+        Returns "phone", "sleeping", "distracted" (eyes neither clearly open nor closed), or None.
+        Eyes open with hands visible on the desk/keyboard stays studying (typing, writing notes).
+        Brief glances up (< LOOK_DOWN_GRACE_S) don't restart the timer.
+        """
+        if C.LONG_LOOK_DOWN_S <= 0:
+            return None
+        t = s.ts
+        if attention == "down":
+            self.down_lost_since = None
+            self.down_since = self.down_since if self.down_since is not None else t
+        elif self.down_since is not None:
+            self.down_lost_since = self.down_lost_since if self.down_lost_since is not None else t
+            if t - self.down_lost_since >= C.LOOK_DOWN_GRACE_S:
+                self.down_since = self.down_lost_since = None
+        if self.down_since is None or attention != "down" or t - self.down_since < C.LONG_LOOK_DOWN_S:
+            return None
+        if s.eyes_closed >= C.DOWN_EYES_CLOSED_MIN:
+            return "sleeping"
+        if s.eyes_closed <= C.DOWN_EYES_OPEN_MAX:
+            # Eyes open and looking down. Hands visible but resting low (keyboard, writing notes)
+            # point to studying; hands raised or out of view (in the lap) point to a phone.
+            if s.hands and not raised_hands(s):
+                return None
+            return "phone"
+        return "distracted"
+
     # ---- hands ----
     def thumbs_moving(self, s: Signals, raised: list[list[Point]]) -> bool:
         """Thumb tip moving relative to its wrist (texting/scrolling), measured over a short window."""
@@ -221,6 +253,7 @@ class ActivityClassifier:
         raised = raised_hands(s)
         thumbs = self.thumbs_moving(s, raised)
         bites = self.count_bites(s)
+        long_down = self.long_look_down(s, attention)  # updated every frame so its timer never goes stale
 
         # Away: nobody in frame for a while.
         if not s.face and not s.pose and not s.hands:
@@ -279,6 +312,12 @@ class ActivityClassifier:
         if bites >= C.BITES_FOR_EATING and t - self.bites[-1] <= C.EATING_HOLD_S:
             self._event("ate", t, events)
             return "eating", events
+
+        # Looking down for a long time: phone (eyes open), sleeping (eyes closed), or distracted (unclear).
+        if long_down:
+            if long_down == "phone":
+                self.eyes_closed_since = None
+            return long_down, events
 
         # Sleeping: eyes closed for a long time while NOT looking down at notes
         # (looking down makes eyelids read as closed). Uses head pitch only: eyeLookDown

@@ -12,6 +12,7 @@ Then set the laptop app's Settings > Device address to 127.0.0.1:8765.
 While it runs, type a command + Enter to force things:
     s = studying/present   p = phone   a = away   e = eating (sends "drank")   z = sleeping
     l = looking away from the screen (present, attention "away" -> laptop counts it as distracted)
+    d = long look down with unclear eyes (camera state "distracted")
     auto = resume script   start | pause | resume | stop | done | dismiss  = simulate TFT taps
 """
 from __future__ import annotations
@@ -29,7 +30,7 @@ import protocol  # noqa: E402
 from server import BoardServer  # noqa: E402
 
 SCRIPT = [("present", 45), ("phone", 10), ("present", 35), ("eating", 6), ("present", 25), ("away", 14), ("present", 30), ("sleeping", 8)]
-KEYS = {"s": "present", "p": "phone", "a": "away", "e": "eating", "z": "sleeping"}
+KEYS = {"s": "present", "p": "phone", "a": "away", "e": "eating", "z": "sleeping", "d": "distracted"}
 
 
 class Mock:
@@ -168,7 +169,7 @@ class Mock:
                 state = self.forced or self.scripted_state(time.time() - t0)
                 self.state = state
                 face, slouch, conf = state not in ("away",), 0.1, 0.9
-                attention = None if not face else "away" if self.looking_away else "screen"
+                attention = None if not face else "away" if self.looking_away else "down" if state == "distracted" else "screen"
                 if state == "eating" and prev != "eating":
                     await self.server.broadcast(protocol.event("drank"))
             if state != prev:
