@@ -11,6 +11,7 @@ Then set the laptop app's Settings > Device address to 127.0.0.1:8765.
 
 While it runs, type a command + Enter to force things:
     s = studying/present   p = phone   a = away   e = eating (sends "drank")   z = sleeping
+    l = looking away from the screen (present, attention "away" -> laptop counts it as distracted)
     auto = resume script   start | pause | resume | stop | done | dismiss  = simulate TFT taps
 """
 from __future__ import annotations
@@ -35,6 +36,7 @@ class Mock:
     def __init__(self, args):
         self.args = args
         self.forced: str | None = None
+        self.looking_away = False
         self.state = "present"
         self.reminder: str | None = None
         self.server = BoardServer(args.port, self.on_laptop)
@@ -70,11 +72,14 @@ class Mock:
     def stdin_thread(self):
         for line in sys.stdin:
             cmd = line.strip().lower()
-            if cmd in KEYS:
-                self.forced = KEYS[cmd]
+            if cmd == "l":
+                self.forced, self.looking_away = "present", True
+                print("  forced state: present, looking away")
+            elif cmd in KEYS:
+                self.forced, self.looking_away = KEYS[cmd], False
                 print(f"  forced state: {self.forced}")
             elif cmd == "auto":
-                self.forced = None
+                self.forced, self.looking_away = None, False
                 print("  back to script")
             elif cmd in ("start", "pause", "resume", "stop"):
                 self.send(protocol.touch(cmd))
@@ -152,17 +157,18 @@ class Mock:
                 r = self.webcam_result
                 if r is None:
                     continue
-                state, face, slouch, conf = r.state, r.face, r.slouch, r.conf
+                state, face, slouch, conf, attention = r.state, r.face, r.slouch, r.conf, r.attention
             else:
                 state = self.forced or self.scripted_state(time.time() - t0)
                 self.state = state
                 face, slouch, conf = state not in ("away",), 0.1, 0.9
+                attention = None if not face else "away" if self.looking_away else "screen"
                 if state == "eating" and prev != "eating":
                     await self.server.broadcast(protocol.event("drank"))
             if state != prev:
                 print(f"camera state: {state}")
                 prev = state
-            await self.server.broadcast(protocol.vision(state, conf, face, slouch))
+            await self.server.broadcast(protocol.vision(state, conf, face, slouch, attention))
 
 
 def main():

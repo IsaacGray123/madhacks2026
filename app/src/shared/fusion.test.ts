@@ -16,6 +16,12 @@ describe('fuse', () => {
     expect(fuse('sleeping', null, kw).activity).toBe('sleeping')
     expect(fuse('eating', null, kw).activity).toBe('eating')
   })
+  it('counts sustained looking away as a distraction, but a distracting window names it first', () => {
+    expect(fuse('present', null, kw, 'away')).toEqual({ activity: 'distracted', tag: 'Looking away' })
+    expect(fuse('present', { app: 'chrome', title: 'Reddit' }, kw, 'away')).toEqual({ activity: 'distracted', tag: 'Reddit' })
+    expect(fuse('present', null, kw, 'down').activity).toBe('studying')
+    expect(fuse('phone', null, kw, 'away').activity).toBe('phone')
+  })
   it('treats missing window info as studying', () => {
     expect(fuse('present', null, kw).activity).toBe('studying')
   })

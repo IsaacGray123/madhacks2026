@@ -1,7 +1,7 @@
 // WebSocket contract between the UNO Q (server, port 8765) and the laptop app (client).
 // Mirrored in board/python/protocol.py — keep the two in sync.
 
-import type { Activity, CameraState, ReminderType, SessionStatus, TimerKey } from './types'
+import type { Activity, Attention, CameraState, ReminderType, SessionStatus, TimerKey } from './types'
 
 export const PROTOCOL_VERSION = 1
 export const DEFAULT_PORT = 8765
@@ -20,6 +20,8 @@ export interface VisionMsg {
   face: boolean
   /** 0 = baseline posture, 1 = badly slouched; null if pose not visible. */
   slouch: number | null
+  /** Gaze/head direction; null with no face. Missing from older board builds. */
+  attention?: Attention | null
 }
 export interface BoardEventMsg {
   type: 'event'

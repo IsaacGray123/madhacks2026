@@ -1,4 +1,7 @@
-import type { Activity, CameraState, WindowInfo } from './types'
+import type { Activity, Attention, CameraState, WindowInfo } from './types'
+
+/** Distraction tag used when the camera sees the user looking away from the screen. */
+export const LOOKING_AWAY_TAG = 'Looking away'
 
 export interface FusionResult {
   activity: Activity
@@ -15,8 +18,9 @@ export function matchDistraction(win: WindowInfo | null, keywords: string[]): st
 /**
  * Combine what the camera sees with what is on screen.
  * Only `present` is refined; every other camera state already describes the user.
+ * A distracting window wins over looking away, since it names the distraction.
  */
-export function fuse(camera: CameraState, win: WindowInfo | null, keywords: string[]): FusionResult {
+export function fuse(camera: CameraState, win: WindowInfo | null, keywords: string[], attention?: Attention | null): FusionResult {
   if (camera !== 'present') {
     const map: Record<Exclude<CameraState, 'present'>, Activity> = {
       phone: 'phone',
@@ -27,5 +31,7 @@ export function fuse(camera: CameraState, win: WindowInfo | null, keywords: stri
     return { activity: map[camera] }
   }
   const tag = matchDistraction(win, keywords)
-  return tag ? { activity: 'distracted', tag } : { activity: 'studying' }
+  if (tag) return { activity: 'distracted', tag }
+  if (attention === 'away') return { activity: 'distracted', tag: LOOKING_AWAY_TAG }
+  return { activity: 'studying' }
 }

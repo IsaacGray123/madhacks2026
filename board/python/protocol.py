@@ -4,7 +4,7 @@ Mirror of app/src/shared/protocol.ts — keep the two in sync.
 
 board -> laptop:
   {"type":"hello","device":"unoq","version":1}
-  {"type":"vision","ts":<ms>,"state":"present|phone|away|eating|sleeping","conf":0..1,"face":bool,"slouch":0..1|null}
+  {"type":"vision","ts":<ms>,"state":"present|phone|away|eating|sleeping","conf":0..1,"face":bool,"slouch":0..1|null,"attention":"screen|down|away"|null}
   {"type":"event","ts":<ms>,"event":"drank|ate"}
   {"type":"touch","action":"start|pause|resume|stop|reminder_done|reminder_dismiss","reminder"?:str}
   {"type":"frame","ts":<ms>,"jpeg":<base64 JPEG>}   (only to clients that sent preview on)
@@ -35,10 +35,14 @@ def hello() -> str:
     return json.dumps({"type": "hello", "device": "unoq", "version": PROTOCOL_VERSION})
 
 
-def vision(state: str, conf: float, face: bool, slouch) -> str:
+ATTENTION = ("screen", "down", "away")
+
+
+def vision(state: str, conf: float, face: bool, slouch, attention: str | None = None) -> str:
     return json.dumps({
         "type": "vision", "ts": now_ms(), "state": state, "conf": round(conf, 2),
         "face": bool(face), "slouch": None if slouch is None else round(float(slouch), 3),
+        "attention": attention,
     })
 
 

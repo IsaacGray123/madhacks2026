@@ -6,6 +6,9 @@ export type Activity = (typeof ACTIVITIES)[number]
 /** What the UNO Q camera can tell on its own. The laptop refines `present` into studying/distracted. */
 export type CameraState = 'present' | 'phone' | 'away' | 'eating' | 'sleeping'
 
+/** Where the camera sees the user looking. `away` is only reported after it has lasted a few seconds. */
+export type Attention = 'screen' | 'down' | 'away'
+
 export interface WindowInfo {
   app: string
   title: string

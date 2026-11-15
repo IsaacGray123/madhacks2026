@@ -86,8 +86,11 @@ class BoardApp:
                             self.pending_events += res.events
                         if self.args.debug:
                             log.info(
-                                "raw=%-8s state=%-8s face=%d pose=%d eyes=%.2f pitch=%+.0f phone=%s drink=%s food=%s slouch=%s",
-                                res.raw, res.state, sig.face, sig.pose, sig.eyes_closed, sig.head_pitch,
+                                "raw=%-8s state=%-8s attn=%-6s face=%d pose=%d hands=%d eyes=%.2f/%.2f pitch=%+.0f "
+                                "yaw=%+.0f gaze_dn=%.2f gaze_side=%.2f phone=%s drink=%s food=%s slouch=%s",
+                                res.raw, res.state, res.attention, sig.face, sig.pose, len(sig.hands),
+                                sig.eyes_closed, self.classifier.eyes_closed_threshold(), sig.head_pitch,
+                                sig.head_yaw, sig.gaze_down, sig.gaze_side,
                                 bool(sig.phone), bool(sig.drink), bool(sig.food),
                                 None if res.slouch is None else round(res.slouch, 2),
                             )
@@ -162,7 +165,7 @@ class BoardApp:
                 res, events, self.pending_events = self.result, self.pending_events, []
             if res is None:
                 continue
-            await self.server.broadcast(protocol.vision(res.state, res.conf, res.face, res.slouch))
+            await self.server.broadcast(protocol.vision(res.state, res.conf, res.face, res.slouch, res.attention))
             for e in events:
                 await self.server.broadcast(protocol.event(e))
             if self.status == "idle":

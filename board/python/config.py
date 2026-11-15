@@ -12,7 +12,10 @@ PREVIEW_JPEG_QUALITY = 60
 
 # --- classification ---
 AWAY_AFTER_S = 10.0            # no face and no body for this long -> away
-EYES_CLOSED_THRESHOLD = 0.6    # mean eyeBlink blendshape
+EYES_CLOSED_THRESHOLD = 0.6    # mean eyeBlink blendshape (used until a baseline is captured)
+EYES_CLOSED_MARGIN = 0.35      # after calibration: closed = your normal open-eye level + this
+EYES_CLOSED_MIN = 0.5          # ...clamped to this range so glasses / narrow eyes don't read as asleep
+EYES_CLOSED_MAX = 0.85
 SLEEP_EYES_CLOSED_S = 15.0     # eyes closed this long (while not looking down at notes) -> sleeping
 SLEEP_FACE_DOWN_S = 30.0       # body visible but face hidden (head on desk) this long -> sleeping
 LOOKING_DOWN_DEG = 20.0        # head pitched down more than this vs. baseline = reading notes, eyes look "closed"
@@ -21,6 +24,27 @@ NEAR_FACE = 0.22               # normalized distance: object/wrist this close to
 PHONE_NEAR_HAND = 0.12         # expand phone box by this much when testing for a wrist inside it
 SMOOTHING_WINDOW_S = 6.0       # majority vote window
 EAT_EVENT_COOLDOWN_S = 60.0    # min gap between drank/ate events
+
+# --- attention (where you're looking) ---
+LOOK_AWAY_YAW_DEG = 30.0       # head turned this far from the baseline = looking away from the screen
+GAZE_SIDE_THRESHOLD = 0.6      # eyeLookOut/In blendshape: eyes turned hard to one side
+GAZE_DOWN_THRESHOLD = 0.55     # eyeLookDown blendshape: eyes looking down (desk, lap, keyboard)
+LOOK_AWAY_S = 8.0              # looking away this long -> attention "away" (laptop counts it as distracted)
+
+# --- hands (MediaPipe HandLandmarker) ---
+HAND_ZONE_ABOVE = 0.05         # "raised" hands: wrist no higher than this above the mouth...
+HAND_ZONE_BELOW = 0.40         # ...and no lower than this below it (hands on the desk/keyboard are lower)
+HANDS_TOGETHER = 0.18          # both wrists within this distance = holding something in front of you
+THUMB_MOTION = 0.012           # std-dev of thumb tip (relative to wrist) that counts as thumbs moving
+THUMB_WINDOW_S = 3.0
+PHONE_POSE_S = 4.0             # looking down + texting hands this long -> phone
+NEAR_EAR = 0.10                # hand this close to the side of the face = phone call
+PHONE_CALL_S = 3.0
+PINCH_DIST = 0.06              # thumb tip to index tip: holding a bite of food
+NEAR_MOUTH_FINGERS = 0.08      # pinched fingertips this close to the mouth = a bite
+BITES_FOR_EATING = 2           # this many separate bites...
+BITE_WINDOW_S = 60.0           # ...within this window -> eating, even if the food isn't detected
+EATING_HOLD_S = 15.0           # keep "eating" this long after the last bite
 
 # --- posture ---
 SLOUCH_FULL_DROP = 0.35        # fractional drop in (nose height above shoulders / shoulder width) that counts as fully slouched

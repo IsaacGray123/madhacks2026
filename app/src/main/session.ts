@@ -8,6 +8,7 @@ import type { VisionMsg } from '@shared/protocol'
 import {
   emptyTotals,
   type Activity,
+  type Attention,
   type CameraState,
   type DeviceStatus,
   type LiveStatus,
@@ -162,6 +163,11 @@ export class SessionManager extends EventEmitter {
     return powerMonitor.getSystemIdleTime() >= IDLE_AWAY_SECONDS ? 'away' : 'present'
   }
 
+  private attention(): Attention | null {
+    const fresh = this.vision && Date.now() - this.vision.ts < VISION_STALE_MS && this.device.connected
+    return !this.screenOnly && fresh ? (this.vision!.attention ?? null) : null
+  }
+
   private tick(): void {
     if (this.status !== 'running' || this.sessionId === null) return
     const now = Date.now()
@@ -170,7 +176,7 @@ export class SessionManager extends EventEmitter {
     this.activeMs += dt
 
     const win = this.watcher.current
-    const { activity, tag } = fuse(this.cameraState(), win, this.settings.distractionKeywords)
+    const { activity, tag } = fuse(this.cameraState(), win, this.settings.distractionKeywords, this.attention())
 
     // Extend or start a segment.
     if (this.seg && this.seg.state === activity && this.seg.tag === tag) {
