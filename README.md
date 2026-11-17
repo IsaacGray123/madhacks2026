@@ -46,23 +46,10 @@ Follow [board/WIRING.md](board/WIRING.md) sections 1–6: plug the webcam into t
 The board runs StudyLens as an **Arduino App Lab** app. The `board/` folder in this repo is already laid out as one.
 
 1. In App Lab, create a new app (or import the folder) and copy in `board/app.yaml`, the whole `board/python/` folder and `board/sketch/sketch.ino`.
-2. Press **Run** once so App Lab creates the app's container.
-3. Open a terminal on the board (App Lab's terminal, or `ssh arduino@<board-ip>` from your laptop) and install the camera AI:
+2. Make sure the board is online, then press **Run**.
+3. **Wait on the first run.** The board installs its camera AI and downloads the AI models by itself. The touchscreen shows `Preparing camera...` for several minutes. When it's ready, it shows the **Camera setup** screen with the board's IP address, and `Waiting for laptop...` once it sees your face.
 
-   ```sh
-   # replace hackathon-1-main-1 with your app's container name (docker ps shows it)
-   docker exec hackathon-1-main-1 python3 /app/python/setup_vision.py
-   ```
-
-   Wait for `Camera environment ready`.
-4. Download the AI models. From the app's `python/` folder on the board:
-
-   ```sh
-   ./download_models.sh
-   ```
-
-   This needs internet. Without the hand model, everything still works except hand gestures (texting, phone calls, bites).
-5. In App Lab, press **Stop**, then **Run**. The touchscreen shows the **Camera setup** screen with the board's IP address.
+Later runs start in seconds. If something fails, the board keeps retrying, and the App Lab console shows why. To run the install by hand, see [board/WIRING.md](board/WIRING.md#9-camera).
 
 Updating the code on GitHub does **not** update the board. Copy the files into App Lab again whenever they change. Updating the companion has its own one-time installer, described in [board/COMPANION.md](board/COMPANION.md).
 
@@ -161,7 +148,7 @@ Ending a session takes you straight to the **Report**: your focus percentage, a 
 | Problem | What to try |
 |---|---|
 | The top bar says **UNO Q offline** | Check the address in **Settings → Device**, make sure both devices are on the same network, try **Background SSH**, or use a phone hotspot. |
-| **Camera sees you** never turns green | On the board, check that the webcam shows up (`ls /dev/video*`) and that `setup_vision.py` printed `Camera environment ready`. Read the App Lab console for errors. The models take 10–30 seconds to load after **Run**. |
+| **Camera sees you** never turns green | The first run takes several minutes and needs internet. Check that the webcam shows up on the board (`ls /dev/video*`) and read the App Lab console for errors. After the first run, the models take 10–30 seconds to load after **Run**. |
 | The camera preview stays on "Starting the camera feed…" | The board is probably running old code. Copy the latest `board/python/` files into App Lab, then **Stop** and **Run**. |
 | The touchscreen is blank or doesn't respond to taps | See [board/WIRING.md](board/WIRING.md), section 13, and the touch calibration steps in section 6. |
 | Tracking feels wrong for you | Start a new session and look at your screen during the countdown. Thresholds can be tuned in `board/python/config.py` (see [WIRING.md](board/WIRING.md), section 14). |

@@ -59,7 +59,7 @@ UNO Q Linux side ⇄ Arduino Router Bridge ⇄ UNO Q MCU sketch (board/sketch/) 
 ```sh
 # laptop app (use Node 20/22 LTS — newer Node can break Electron's binary install)
 cd app && npm install && npm run dev
-npm run typecheck && npm test          # Vitest: 17 tests
+npm run typecheck && npm test          # Vitest: 22 tests at last count (run `npm install` first: ssh2 is a dependency)
 npm run dist:win                       # NSIS installer (build on Windows)
 
 # fake board for dev without hardware; then app Settings → Device = 127.0.0.1:8765
@@ -68,10 +68,10 @@ pip install websockets && python tools/mock_board.py --fast
 #   stdin commands: s p a e z = force state, l = looking away, auto, start/pause/resume/stop/done/dismiss
 
 # board python tests (the local, git-ignored .venv has pytest + websockets: .venv/bin/python -m pytest ...)
-python -m pytest board/python/tests    # 18 tests
+python -m pytest board/python/tests    # 34 tests; test_recovery's path check fails on macOS only (/var vs /private/var)
 
 # on the UNO Q (App Lab terminal or SSH), inside the app's python/ folder
-./download_models.sh                   # face, pose, object, hand models → models/
+./download_models.sh                   # optional: main.py downloads and checksums all 4 models itself (model_assets.py)
 python main.py --debug                 # prints raw/state/attention, hands, eyes vs threshold, pitch/yaw, gaze, objects
 ```
 Gotchas:
@@ -119,7 +119,7 @@ This section supersedes the older status notes below.
 - `main_full.py` preserves the original app implementation from before the subprocess integration. It is a backup. The full current startup file is `main.py` and contains `class BoardApp`. If startup still prints `Importing vision`, the board still has the temporary diagnostic copy.
 - The board app folder is `/home/arduino/ArduinoApps/hackathon-1`, mounted at `/app`, and its container is `hackathon-1-main-1`. Names vary with the app. Use `docker inspect` and `docker ps -a` to verify them. Updating GitHub alone did not update the App Lab copy in this session.
 
-After copying the current files into App Lab, press Run. Run this in the board terminal, wait for `Camera environment ready`, then Stop and Run again.
+After copying the current files into App Lab, press Run. Since `3b646ab`, `main.py` provisions the Python 3.12 environment (`setup_vision.ensure_environment`) and the models (`model_assets.ensure_models`) by itself and retries with backoff, showing `Preparing camera...` on the TFT. Running setup by hand is optional, for watching or forcing the install:
 
 ```sh
 docker exec hackathon-1-main-1 python3 /app/python/setup_vision.py
