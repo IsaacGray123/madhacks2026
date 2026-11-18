@@ -1,7 +1,6 @@
 # StudyLens
 
-## Demo
-https://youtu.be/I0EHS4B1e8k
+**Demo Video:** https://youtu.be/I0EHS4B1e8k
 
 **Where did your study time actually go?**
 
