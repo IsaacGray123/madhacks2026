@@ -1,5 +1,8 @@
 # StudyLens
 
+## Demo
+https://youtu.be/I0EHS4B1e8k
+
 **Where did your study time actually go?**
 
 StudyLens is a study companion for your desk. A small camera on an **Arduino UNO Q** watches your study session and uses on-device AI to notice what you're doing: studying, on your phone, looking away, away from your desk, eating or drinking, or dozing off. A desktop app on your laptop adds which app or website is in front of you, sends gentle self-care reminders while you work, and shows you an honest breakdown when you're done.
